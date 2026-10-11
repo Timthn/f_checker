@@ -7,3 +7,28 @@ body.light{--air:#e4edeb;--panel:#f5f8f5;--line:#bdceca;--mist:#173431;--muted:#
 
 nav:has(.hovered) button.active:not(.hovered){color:var(--muted)}
 body.light .demo-notice>span{color:#815520}
+
+/* Default daylight palette, requested 2026-10-12. Dark mode remains available. */
+body.light{--air:#f0f4ef;--panel:#fcfdf9;--line:#d3dfd8;--mist:#223f3e;--muted:#5b716a;--ice:#346d68;--base:#e0e8e3;--field:#fafcf7;--soft:#e2eee5;--apricot:#f3d1a8;--butter:#f8edc9}
+body.light .entry{background:#f9fcf5ed;color:#223f3e;border-color:#c9d9d0;box-shadow:0 18px 48px #325c5012}
+body.light .entry-search{background:#e4efe1}
+body.light .entry-meet{background:#fdfaf0f2}
+body.light .entry-flex{background:#e6efedf2}
+body.light .entry:hover,body.light .entry:focus-visible{color:#14292a;border-color:#dab481}
+body.light .entry-search:hover{background:#e4efe1}
+body.light .entry .meet-route em{color:#95632f}
+body.light .mini-calendar i{background:#bbd2cb}
+body.light .mini-calendar i:nth-child(3n){background:#8eb5a7}
+body.light .mini-calendar i:nth-child(8){background:#e6bf83}
+body.light .airspace{opacity:1}
+body.light .airspace svg>g[stroke]{stroke:#537d76}
+body.light .airspace svg>g[fill="#b6dedd"]{fill:#537d76}
+body.light .airspace svg>g[font-size]{fill:#58766f}
+body.light #grid path{stroke:#5e8178;stroke-opacity:.13}
+body.light #halo stop:first-child{stop-color:#aac7b9;stop-opacity:.35}
+body.light .detail-surface{background:#fbfdf8}
+body.light .flex-best{background:#d6e9dc}
+body.light .coverage-bar{background:#d5e4da}
+body.light .range-meter i{background:#254d44}
+body.light .person-avatar.amber{color:#223f3e}
+body.light .person-tabs button.selected,body.light .matrix-table button.picked{color:#fff}

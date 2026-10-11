@@ -72,3 +72,7 @@ Revised the initial all-dark cockpit proposal after seeing the references: the m
 滚动背景速度0.18，飞机反向补偿，前景更慢；背景模糊上限2.5px。只模糊装饰，不模糊价格/文字/控件。窄屏和减少动态效果模式移除非必要动效。不把产品介绍的长篇钉住叙事或图片跟随预览强加到密集比价流程。
 
 用户随后要求不用Superpowers、直接创意执行。以可审阅原型为交付，未继续调用Superpowers工作流。
+
+## Daylight palette — current default
+
+2026-10-12 用户要求更浅色系。默认采用浅雾灰画布 #f0f4ef、近白面板 #fcfdf9、柔和青绿 #346d68、暖杏 #f3d1a8 与淡奶油 #f8edc9；正文为深灰绿 #223f3e。三个首页入口也改为浅色，航线/网格改为低饱和深青，确保浅背景上可辨。推荐卡保留暖色视觉重心；详情近白、日期推荐浅鼠尾草绿。深色主题仍可由右上角切换。

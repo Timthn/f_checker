@@ -79,7 +79,7 @@
       "passed": true
     },
     {
-      "name": "Theme toggle changes theme",
+      "name": "Default light theme can switch to dark",
       "passed": true
     },
     {
