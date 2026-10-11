@@ -1,0 +1,146 @@
+{
+  "checked_at_hk": "2026-10-12",
+  "actor_build": "0.0.2",
+  "account_plan": "FREE",
+  "run_count": 9,
+  "total_reported_usage_usd": "0.04345",
+  "reserved_max_usd": "0.27",
+  "budget_usd": "0.50",
+  "runs": [
+    {
+      "name": "economy-one-way",
+      "mode": "search",
+      "itineraries": 126,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "round-trip-with-bags-empty",
+      "mode": "search",
+      "itineraries": 0,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00005",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 0,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "business-one-way",
+      "mode": "search",
+      "itineraries": 100,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "calendar",
+      "mode": "calendar",
+      "itineraries": null,
+      "booking_options": null,
+      "calendar_cells": 3,
+      "selected_legs": null,
+      "cost_usd": "0.00805",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 0,
+        "calendar-request": 1,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "round-trip-search",
+      "mode": "search",
+      "itineraries": 19,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "carry-on-search",
+      "mode": "search",
+      "itineraries": 19,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "return-options",
+      "mode": "return",
+      "itineraries": 6,
+      "booking_options": null,
+      "calendar_cells": null,
+      "selected_legs": null,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "one-way-booking",
+      "mode": "booking",
+      "itineraries": null,
+      "booking_options": 1,
+      "calendar_cells": null,
+      "selected_legs": 1,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    },
+    {
+      "name": "round-trip-booking",
+      "mode": "booking",
+      "itineraries": null,
+      "booking_options": 1,
+      "calendar_cells": null,
+      "selected_legs": 2,
+      "cost_usd": "0.00505",
+      "charged_events": {
+        "apify-actor-start": 1,
+        "flights-request": 1,
+        "calendar-request": 0,
+        "location-search": 0
+      }
+    }
+  ]
+}

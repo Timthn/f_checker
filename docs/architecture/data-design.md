@@ -1,5 +1,6 @@
 # Flight cheaker data design v0.2
 
+2026-10-12 Vercel-oriented update: proposed Next.js/TypeScript full-stack alternative is now the prepared goal recommendation; see [vercel-fullstack-option.md](vercel-fullstack-option.md). Earlier Python details below remain an alternative; storage/contracts/acceptance stay applicable. No implementation or final stack acceptance inferred.
 2026-10-12. Reviewable design, not applied SQL or a live schema. Primary recommendation: Supabase managed PostgreSQL and Auth; Next.js frontend; FastAPI plus a separate Python worker. One dedicated development project, never an unrelated existing database. Supabase MCP responded with an empty visible project list today; no project or tables were created or inspected.
 
 ## Three distinct data products

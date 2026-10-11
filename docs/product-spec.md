@@ -1,5 +1,7 @@
 # F Checker — Product Spec v0.1
 
+2026-10-12 reconciliation: user selected Apify, bounded live probe is documented in docs/connectors/apify-live-spike-2026-10-12.md. The original no-call preflight boundary below was superseded only for that authorized spike; application implementation/deployment has not started. Updated stack and migration conventions: docs/architecture/apify-stack-fit.md.
+
 日期：2026-10-11（Asia/Hong_Kong）。状态：可评审草案；开发前阶段，不代表用户已批准所有默认值。
 
 ## 1. 目标与范围
@@ -46,13 +48,13 @@ unknown 单独展示“行李/费用待确认”，可跳转确认，但不混�
 - 历史报价：同一行程和可比票价条件在不同 observed_at 的快照。默认最近 30 天。不存在的过去样本不补造。provider 返回的 route/search-level price_history 独立标成“路线搜索价格参考”，不得归入具体航班历史。
 - 日期价格：当前观测时，所选出发日 ±30 天的报价；往返默认固定停留长度，返回日期随之移动，明确标注。过去日期排除。缺失格点保持缺失，不填零，不声称来自过去报价观测。
 
-历史统计先将同一日的重复查询折叠为该日最新的可比报价，算术平均值和中位数以此样本为基础；窗口只含当前观测之前的数据。详情显示平均价、当前价、覆盖日期、样本数和偏差。
+历史统计先将同一UTC观测日的可比报价折叠为该日中位数，算术平均值和中位数以此样本为基础；窗口只含当前观测之前的数据。详情显示平均价、当前价、覆盖日期、样本数和偏差。
 
-Signal 建议算法：有 ≥7 个不同观测日、跨度 ≥7 天的同条件历史时，以之前 30 天日样本中位数 M 为基准，d=(当前价−M)/M。d≤−10% 为偏低，d≥10% 为偏高，否则正常。阈值可配置；M≤0、过期或不可比则 insufficient。平均价用于展示，中位数用于稳健判断，并解释差异。
+Signal 建议算法：有 ≥7 个不同观测日、跨度 ≥7 天的同条件历史时，以之前 30 天日样本中位数 M 为基准，d=(当前价−M)/M。d≤−5% 为偏低，d≥5% 为偏高，否则正常。阈值可配置；M≤0、过期或不可比则 insufficient。平均价用于展示，中位数用于稳健判断，并解释差异。
 
 provider 的 low/typical/high 只作为来源给出的路线参考，不能代替我们针对具体航班、舱位、行李的 signal。日期价格均值不直接用于判定“现在该不该买”。不预测未来，不承诺最低价或最佳购买时机。
 
-可比历史键包含排序后的完整航段序列及旅行时间、逐段舱位、人数类型/数量、币种、行李要求、费用完整性、票价方案/改签退款权益、provider。权益无法识别的样本不跨方案合并；跨 provider 默认不合并。临时 token 不进入历史键。当前 quote 超过缓存 TTL 标 stale，不生成购买 Signal；历史基线最后观测超过 7 天标数据不足（建议可配置）。
+可比历史键包含排序后的完整航段序列及旅行时间、逐段舱位、人数类型/数量、币种、行李要求、费用完整性、票价方案/改签退款权益、provider。权益无法识别的样本不跨方案合并；跨 provider 默认不合并。临时 token 不进入历史键。当前 quote 超过缓存 TTL 标 stale，不生成购买 Signal；最近有效报价超过24小时，或当前报价已过期，则标数据不足；历史比较须符合 data-design.md 的30天窗口与可比条件。
 
 日期价格默认标成“同航线、同舱位、同行李条件的每日最低候选”，不是此具体航班的历史。若支持匹配同航班另设系列标签，不能静默切换。往返固定长度的日期网格仅用于探索，最终停留以完整 itinerary 核验。
 
@@ -84,7 +86,7 @@ Alternatives 提供至少两种存在时的取舍：更便宜但需更久等待�
 
 job 状态 queued/running/partial/succeeded/failed/cancelled；UI 区分 loading、无结果、unsupported、missing_credentials、provider_error、rate_limited、quota_exceeded 和历史 insufficient。
 
-建议查询缓存 TTL 15 分钟、详情 10 分钟；缓存命中显示实际 observed_at。刷新为明确动作。保留可比报价快照 180 天建议值，原始脱敏响应 30 天建议值，数据源条款不允许时缩短/停存。保留期限待最终 provider 选定核对。
+建议查询缓存 TTL 15 分钟、详情 10 分钟；缓存命中显示实际 observed_at。刷新为明确动作。保留细节90天、紧凑观测180天、日聚合365天、可选脱敏诊断7天；保存被保留历史引用的轻量headers，避免FK/cascade丢失历史。具体规则以 data-design.md 为准，供应商条款待核对；不允许时缩短/停存。
 
 建议交互目标：点击后 1 秒内进度反馈；异步任务不承诺 provider 真实完成时间；单请求超时 30 秒、整任务 180 秒初始配置，长任务允许延长但受预算约束。限流按 provider plan 与本地全局并发控制。自动历史监控默认关闭，用户显式开启才新增计划请求。
 

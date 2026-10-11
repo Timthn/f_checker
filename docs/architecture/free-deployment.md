@@ -2,7 +2,11 @@
 
 Reviewed 2026-10-12. Design only: no accounts created, resources deployed or subscriptions purchased. Prices/eligibility must be checked again before deployment.
 
-## Recommended personal demo
+## Updated TypeScript option
+
+User asked about frontend/backend sharing Vercel. The prepared goal now proposes Next.js/TypeScript full-stack on one Vercel project, with Supabase and Apify remaining external. See [vercel-fullstack-option.md](vercel-fullstack-option.md) for Function/Workflow/Cron limits and no-duplicate-charge semantics. No Render account required for that option. It is a recommendation pending user invocation, not a deployment.
+
+## Earlier Python personal demo alternative
 
 | Component | Suggested free service | Important boundary |
 |---|---|---|

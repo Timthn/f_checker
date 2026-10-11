@@ -1,5 +1,6 @@
 # Backend spec v0.1
 
+2026-10-12 Vercel-oriented update: proposed Next.js/TypeScript full-stack alternative is now the prepared goal recommendation; see [vercel-fullstack-option.md](vercel-fullstack-option.md). Earlier Python details below remain an alternative; storage/contracts/acceptance stay applicable. No implementation or final stack acceptance inferred.
 Proposed Python/FastAPI; this is a planned API, not provider API and not implemented endpoints.
 
 ## REST contracts

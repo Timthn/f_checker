@@ -1,0 +1,133 @@
+{
+  "evidence_kind": "live_derived_redacted_sample",
+  "actor_build": "0.0.2",
+  "query_name": "one-way-booking",
+  "sampling": {
+    "original_array_lengths": {
+      "booking_options": 1,
+      "price_history": 62
+    },
+    "itinerary_booking_calendar_limit": 3,
+    "history_limit": 7,
+    "removed": "tokens, URLs, booking request payloads and booking phones"
+  },
+  "provider_response": {
+    "mode": "booking",
+    "endpoint": "/v1/serp/google_flights_booking",
+    "input": {},
+    "currency": "HKD",
+    "trip_type": "one_way",
+    "legs": [
+      {
+        "segments": [
+          {
+            "departure_airport": "HKG",
+            "arrival_airport": "NRT",
+            "departure_time": "2026-11-10T01:10:00",
+            "arrival_time": "2026-11-10T06:20:00",
+            "airline": "Jetstar",
+            "airline_code": "GK",
+            "flight_number": "GK 28",
+            "duration_minutes": 250,
+            "aircraft": "Airbus A320",
+            "cabin_class": "economy",
+            "departure_airport_name": "Hong Kong International Airport",
+            "arrival_airport_name": "Narita International Airport",
+            "operated_by": null,
+            "ticket_also_sold_by": [],
+            "legroom": "29 in",
+            "legroom_category": "below_average",
+            "overnight": false,
+            "red_eye": true,
+            "often_delayed_by_over_30_min": false,
+            "carbon_emissions_kg": 248,
+            "extensions": [
+              "Below average legroom (29 in)",
+              "Carbon emissions estimate: 248 kg"
+            ],
+            "airline_logo": "[REDACTED]"
+          }
+        ],
+        "departure_airport": "HKG",
+        "arrival_airport": "NRT",
+        "duration_minutes": 250,
+        "stops": 0,
+        "layover_airports": [],
+        "is_direct": true,
+        "layovers": [],
+        "airlines": [
+          "Jetstar"
+        ],
+        "departure_time": "2026-11-10T01:10:00",
+        "arrival_time": "2026-11-10T06:20:00"
+      }
+    ],
+    "booking_options": [
+      {
+        "book_with": "Jetstar",
+        "seller_code": "GK",
+        "is_airline": true,
+        "price": 989,
+        "currency": "HKD",
+        "display_price": "HK$989",
+        "local_prices": [],
+        "marketed_as": [
+          "GK 28"
+        ],
+        "seller_domain": "www.jetstar.com/...",
+        "separate_tickets": false,
+        "sellers": [
+          "Jetstar"
+        ],
+        "option_title": null,
+        "extensions": [],
+        "baggage_prices": []
+      }
+    ],
+    "option_count": 1,
+    "cheapest_price": 989,
+    "price_insights": {
+      "lowest_price": 989,
+      "price_level": "typical",
+      "typical_price_range": [
+        980,
+        1200
+      ],
+      "price_history": [
+        [
+          1786464000,
+          1323
+        ],
+        [
+          1786550400,
+          1323
+        ],
+        [
+          1786636800,
+          1323
+        ],
+        [
+          1786723200,
+          1323
+        ],
+        [
+          1786809600,
+          1323
+        ],
+        [
+          1786896000,
+          1323
+        ],
+        [
+          1786982400,
+          1193
+        ]
+      ]
+    },
+    "wire_bytes": 8920,
+    "elapsed_s": 4.715,
+    "request_id": "req_1be53fae6a5a4641b36537831c9fd120",
+    "billed": true,
+    "scraped_at": "2026-10-11T17:23:11.202Z"
+  }
+}

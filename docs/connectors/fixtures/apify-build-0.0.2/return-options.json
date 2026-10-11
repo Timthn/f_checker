@@ -1,0 +1,508 @@
+{
+  "evidence_kind": "live_derived_redacted_sample",
+  "actor_build": "0.0.2",
+  "query_name": "return-options",
+  "sampling": {
+    "original_array_lengths": {
+      "itineraries": 6
+    },
+    "itinerary_booking_calendar_limit": 3,
+    "history_limit": 7,
+    "removed": "tokens, URLs, booking request payloads and booking phones"
+  },
+  "provider_response": {
+    "mode": "return",
+    "endpoint": "/v1/serp/google_flights_return",
+    "input": {},
+    "departure_airport": "NRT",
+    "arrival_airport": "HKG",
+    "departure_date": "2026-11-17",
+    "currency": "HKD",
+    "adults": 1,
+    "itineraries": [
+      {
+        "legs": [
+          {
+            "segments": [
+              {
+                "departure_airport": "NRT",
+                "arrival_airport": "HKG",
+                "departure_time": "2026-11-17T08:15:00",
+                "arrival_time": "2026-11-17T12:40:00",
+                "airline": "Hong Kong Express",
+                "airline_code": "UO",
+                "flight_number": "UO 857",
+                "duration_minutes": 325,
+                "aircraft": "Airbus A321neo",
+                "cabin_class": "economy",
+                "departure_airport_name": "Narita International Airport",
+                "arrival_airport_name": "Hong Kong International Airport",
+                "operated_by": null,
+                "ticket_also_sold_by": [],
+                "legroom": "28 in",
+                "legroom_category": "below_average",
+                "overnight": false,
+                "red_eye": false,
+                "often_delayed_by_over_30_min": false,
+                "carbon_emissions_kg": 188,
+                "extensions": [
+                  "Below average legroom (28 in)",
+                  "Carbon emissions estimate: 188 kg"
+                ],
+                "airline_logo": "[REDACTED]"
+              }
+            ],
+            "departure_airport": "NRT",
+            "arrival_airport": "HKG",
+            "duration_minutes": 325,
+            "stops": 0,
+            "layover_airports": [],
+            "is_direct": true,
+            "layovers": [],
+            "airlines": [
+              "Hong Kong Express"
+            ],
+            "departure_time": "2026-11-17T08:15:00",
+            "arrival_time": "2026-11-17T12:40:00"
+          }
+        ],
+        "price": 2289,
+        "currency": "HKD",
+        "display_price": "HK$2,289",
+        "carbon_emissions_kg": 188,
+        "carbon_emissions_comparison": "16% lower than typical",
+        "trip_type": "round_trip",
+        "total_stops": 0,
+        "is_direct": true,
+        "group": "other",
+        "price_exact": 2289,
+        "priced_in": null,
+        "carbon_emissions": {
+          "this_flight": 188000,
+          "typical_for_this_route": 223000,
+          "difference_percent": -16
+        },
+        "total_duration_minutes": 325,
+        "carry_on_bags_included": 1,
+        "checked_bags_included": null,
+        "airline_logo": "[REDACTED]"
+      },
+      {
+        "legs": [
+          {
+            "segments": [
+              {
+                "departure_airport": "NRT",
+                "arrival_airport": "HKG",
+                "departure_time": "2026-11-17T15:25:00",
+                "arrival_time": "2026-11-17T19:50:00",
+                "airline": "Hong Kong Express",
+                "airline_code": "UO",
+                "flight_number": "UO 849",
+                "duration_minutes": 325,
+                "aircraft": "Airbus A321neo",
+                "cabin_class": "economy",
+                "departure_airport_name": "Narita International Airport",
+                "arrival_airport_name": "Hong Kong International Airport",
+                "operated_by": null,
+                "ticket_also_sold_by": [],
+                "legroom": "28 in",
+                "legroom_category": "below_average",
+                "overnight": false,
+                "red_eye": false,
+                "often_delayed_by_over_30_min": false,
+                "carbon_emissions_kg": 188,
+                "extensions": [
+                  "Below average legroom (28 in)",
+                  "Carbon emissions estimate: 188 kg"
+                ],
+                "airline_logo": "[REDACTED]"
+              }
+            ],
+            "departure_airport": "NRT",
+            "arrival_airport": "HKG",
+            "duration_minutes": 325,
+            "stops": 0,
+            "layover_airports": [],
+            "is_direct": true,
+            "layovers": [],
+            "airlines": [
+              "Hong Kong Express"
+            ],
+            "departure_time": "2026-11-17T15:25:00",
+            "arrival_time": "2026-11-17T19:50:00"
+          }
+        ],
+        "price": 2289,
+        "currency": "HKD",
+        "display_price": "HK$2,289",
+        "carbon_emissions_kg": 188,
+        "carbon_emissions_comparison": "16% lower than typical",
+        "trip_type": "round_trip",
+        "total_stops": 0,
+        "is_direct": true,
+        "group": "other",
+        "price_exact": 2289,
+        "priced_in": null,
+        "carbon_emissions": {
+          "this_flight": 188000,
+          "typical_for_this_route": 223000,
+          "difference_percent": -16
+        },
+        "total_duration_minutes": 325,
+        "carry_on_bags_included": 1,
+        "checked_bags_included": null,
+        "airline_logo": "[REDACTED]"
+      },
+      {
+        "legs": [
+          {
+            "segments": [
+              {
+                "departure_airport": "NRT",
+                "arrival_airport": "HKG",
+                "departure_time": "2026-11-17T16:55:00",
+                "arrival_time": "2026-11-17T21:20:00",
+                "airline": "Hong Kong Express",
+                "airline_code": "UO",
+                "flight_number": "UO 871",
+                "duration_minutes": 325,
+                "aircraft": "Airbus A321neo",
+                "cabin_class": "economy",
+                "departure_airport_name": "Narita International Airport",
+                "arrival_airport_name": "Hong Kong International Airport",
+                "operated_by": null,
+                "ticket_also_sold_by": [],
+                "legroom": "28 in",
+                "legroom_category": "below_average",
+                "overnight": false,
+                "red_eye": false,
+                "often_delayed_by_over_30_min": false,
+                "carbon_emissions_kg": 188,
+                "extensions": [
+                  "Below average legroom (28 in)",
+                  "Carbon emissions estimate: 188 kg"
+                ],
+                "airline_logo": "[REDACTED]"
+              }
+            ],
+            "departure_airport": "NRT",
+            "arrival_airport": "HKG",
+            "duration_minutes": 325,
+            "stops": 0,
+            "layover_airports": [],
+            "is_direct": true,
+            "layovers": [],
+            "airlines": [
+              "Hong Kong Express"
+            ],
+            "departure_time": "2026-11-17T16:55:00",
+            "arrival_time": "2026-11-17T21:20:00"
+          }
+        ],
+        "price": 2289,
+        "currency": "HKD",
+        "display_price": "HK$2,289",
+        "carbon_emissions_kg": 188,
+        "carbon_emissions_comparison": "16% lower than typical",
+        "trip_type": "round_trip",
+        "total_stops": 0,
+        "is_direct": true,
+        "group": "other",
+        "price_exact": 2289,
+        "priced_in": null,
+        "carbon_emissions": {
+          "this_flight": 188000,
+          "typical_for_this_route": 223000,
+          "difference_percent": -16
+        },
+        "total_duration_minutes": 325,
+        "carry_on_bags_included": 1,
+        "checked_bags_included": null,
+        "airline_logo": "[REDACTED]"
+      }
+    ],
+    "wire_bytes": 28594,
+    "elapsed_s": 0.177,
+    "cheapest_price": 2289,
+    "trip_type": "round_trip",
+    "leg_index": 1,
+    "legs_total": 2,
+    "itinerary_count": 6,
+    "best_count": 0,
+    "price_insights": null,
+    "airlines_available": [
+      {
+        "code": "ONEWORLD",
+        "name": "Oneworld",
+        "type": "alliance"
+      },
+      {
+        "code": "SKYTEAM",
+        "name": "SkyTeam",
+        "type": "alliance"
+      },
+      {
+        "code": "STAR_ALLIANCE",
+        "name": "Star Alliance",
+        "type": "alliance"
+      },
+      {
+        "code": "BX",
+        "name": "Air Busan",
+        "type": "airline"
+      },
+      {
+        "code": "K6",
+        "name": "Air Cambodia",
+        "type": "airline"
+      },
+      {
+        "code": "CA",
+        "name": "Air China",
+        "type": "airline"
+      },
+      {
+        "code": "YP",
+        "name": "Air Premia",
+        "type": "airline"
+      },
+      {
+        "code": "TN",
+        "name": "Air Tahiti Nui",
+        "type": "airline"
+      },
+      {
+        "code": "NH",
+        "name": "ANA",
+        "type": "airline"
+      },
+      {
+        "code": "OZ",
+        "name": "Asiana Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "PG",
+        "name": "Bangkok Airways",
+        "type": "airline"
+      },
+      {
+        "code": "OD",
+        "name": "Batik Air",
+        "type": "airline"
+      },
+      {
+        "code": "CX",
+        "name": "Cathay Pacific",
+        "type": "airline"
+      },
+      {
+        "code": "5J",
+        "name": "Cebu Pacific",
+        "type": "airline"
+      },
+      {
+        "code": "CI",
+        "name": "China Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "MU",
+        "name": "China Eastern",
+        "type": "airline"
+      },
+      {
+        "code": "CZ",
+        "name": "China Southern",
+        "type": "airline"
+      },
+      {
+        "code": "ZE",
+        "name": "EASTAR JET",
+        "type": "airline"
+      },
+      {
+        "code": "BR",
+        "name": "EVA Air",
+        "type": "airline"
+      },
+      {
+        "code": "FJ",
+        "name": "Fiji Airways",
+        "type": "airline"
+      },
+      {
+        "code": "FY",
+        "name": "Firefly",
+        "type": "airline"
+      },
+      {
+        "code": "GA",
+        "name": "Garuda Indonesia",
+        "type": "airline"
+      },
+      {
+        "code": "HB",
+        "name": "Greater Bay Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "HU",
+        "name": "Hainan",
+        "type": "airline"
+      },
+      {
+        "code": "HX",
+        "name": "Hong Kong Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "UO",
+        "name": "Hong Kong Express",
+        "type": "airline"
+      },
+      {
+        "code": "JL",
+        "name": "JAL",
+        "type": "airline"
+      },
+      {
+        "code": "7C",
+        "name": "Jeju Air",
+        "type": "airline"
+      },
+      {
+        "code": "GK",
+        "name": "Jetstar",
+        "type": "airline"
+      },
+      {
+        "code": "HO",
+        "name": "Juneyao Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "KE",
+        "name": "Korean Air",
+        "type": "airline"
+      },
+      {
+        "code": "MH",
+        "name": "Malaysia Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "OM",
+        "name": "MIAT",
+        "type": "airline"
+      },
+      {
+        "code": "RA",
+        "name": "Nepal Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "MM",
+        "name": "Peach Aviation",
+        "type": "airline"
+      },
+      {
+        "code": "PR",
+        "name": "Philippine Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "QR",
+        "name": "Qatar Airways",
+        "type": "airline"
+      },
+      {
+        "code": "BI",
+        "name": "Royal Brunei",
+        "type": "airline"
+      },
+      {
+        "code": "TR",
+        "name": "Scoot",
+        "type": "airline"
+      },
+      {
+        "code": "SC",
+        "name": "Shandong",
+        "type": "airline"
+      },
+      {
+        "code": "FM",
+        "name": "Shanghai Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "SQ",
+        "name": "Singapore Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "9C",
+        "name": "Spring",
+        "type": "airline"
+      },
+      {
+        "code": "UL",
+        "name": "SriLankan",
+        "type": "airline"
+      },
+      {
+        "code": "JX",
+        "name": "STARLUX Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "TG",
+        "name": "THAI",
+        "type": "airline"
+      },
+      {
+        "code": "SL",
+        "name": "Thai Lion Air",
+        "type": "airline"
+      },
+      {
+        "code": "TW",
+        "name": "Trinity Airways",
+        "type": "airline"
+      },
+      {
+        "code": "TK",
+        "name": "Turkish Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "UA",
+        "name": "United",
+        "type": "airline"
+      },
+      {
+        "code": "VJ",
+        "name": "Vietjet",
+        "type": "airline"
+      },
+      {
+        "code": "VN",
+        "name": "Vietnam Airlines",
+        "type": "airline"
+      },
+      {
+        "code": "MF",
+        "name": "XiamenAir",
+        "type": "airline"
+      }
+    ],
+    "source": "rpc",
+    "warnings": [],
+    "return_date": "2026-11-17",
+    "request_id": "req_9da64f2f5a1b470ea4e5b4f05ca43fd8",
+    "billed": true,
+    "scraped_at": "2026-10-11T17:23:03.862Z"
+  }
+}

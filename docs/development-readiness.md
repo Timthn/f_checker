@@ -1,6 +1,6 @@
 # Flight cheaker — development handoff and keys
 
-2026-10-12. UI deliverable is a verified standalone prototype, not a completed production Next.js app.75 browser checks passed across layout, language and core demo flows. Recommended development stack: Next.js/TypeScript/ECharts + FastAPI/Python worker + Supabase PostgreSQL/Auth. See [architecture review](reviews/architecture-review-2026-10-12.md) and [data model](architecture/data-design.md).
+2026-10-12. UI deliverable is a verified standalone prototype, not a completed production Next.js app.75 browser checks passed across layout, language and core demo flows. Updated recommendation: Next.js/TypeScript full-stack API + ECharts + durable Workflow evaluation + Supabase PostgreSQL/Auth. See architecture/vercel-fullstack-option.md; earlier Python plan is an alternative. See [architecture review](reviews/architecture-review-2026-10-12.md) and [data model](architecture/data-design.md).
 
 ## What to prepare
 
@@ -11,7 +11,7 @@
 | Supabase project URL | Frontend Auth and backend token issuer | `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_URL`; same project. |
 | Database setup connection/password | Create schema/roles in that project | Project Connect. Store as `MIGRATION_DATABASE_URL` only in local/CI migration environment. SQL password is not the publishable key. |
 | Restricted API and worker database URLs | Application SQL connections | `DATABASE_URL` (`fc_api`) and `WORKER_DATABASE_URL` (`fc_worker`), created during initial project setup. Do not run the public API with the administrative connection. |
-| SearchApi API key | First real flight capability spike | SearchApi dashboard, `SEARCHAPI_API_KEY` in backend environment only. Start with ≤40 requests and account-specific hourly limits. |
+| Apify API token + Actor/build | Selected live connector | Locally configured APIFY_API_TOKEN; actor scrapercompany/google-flights-scraper, tested build0.0.2. See apify-live-spike report. No extra SearchApi key required. |
 
 For this design you do **not** need a Supabase secret/service_role key in the application, an OpenAI key, a Google Cloud key, an Apify token and a SerpApi key simultaneously, Figma credentials, or deployment credentials. Supabase's connected MCP is a development management channel; it does not replace application DB/Auth credentials or supply live flight data. If a later server-side admin/storage feature requires a secret key, add it then with limited scope and no `NEXT_PUBLIC_` prefix.
 
@@ -35,12 +35,14 @@ No credentials are needed for component porting, pure business rules, fixture-ba
 
 1. Pin project-only runtime/dependencies; port the approved prototype into responsive typed components with semantic Chinese/English catalogs.
 2. Create typed API contracts and deterministic money/baggage/history/rendezvous/flexible-date rules with fixtures.
-3. Run a ≤40-call SearchApi capability spike once the backend key is configured; save only sanitized fixtures and billing evidence. Do not finalize unsupported baggage promises.
+3. Build the selected Apify adapter from the nine sanitized live samples. Any extra verification consumes the remaining original USD0.50 cumulative budget and must preserve unknown baggage/time/date-grid limits. Do not subscribe or use paid fallback.
 4. In the named Supabase dev project, create versioned migrations, restricted roles and RLS. Test from an empty database, two-user isolation, persistence and job recovery.
 5. Connect UI/API/worker; verify loading/partial/error/expired/insufficient states, localizations and budget/cancellation behavior with real boundaries.
 6. Unit/integration/E2E tests, clean environment install, progress/error records, secret scan and push only to `Timthn/f_checker`. Deploy only after platform and authorization are provided.
 
-Suggested next goal text:
+The earlier SearchApi-based draft below is superseded by [the current Apify development goal](development-goal-prompt.md). Budget scenarios above are alternatives, not the chosen subscription. Current provider decision and actual evidence: [Apify live spike](connectors/apify-live-spike-2026-10-12.md).
+
+Historical suggested goal text (superseded):
 
 > 为 Flight cheaker 开始实际开发，采用本项目推荐的 Next.js + FastAPI + Supabase PostgreSQL/Auth 架构，保留已审阅的浅色双语驾驶舱设计。以 AGENTS.md、product-spec、data-design、localization-spec 和 architecture-review-2026-10-12 为依据。先完成无凭证部分，再使用我指定的 Supabase 开发项目和本地配置的 SearchApi Key 做最多40次的能力验证。真实能力未证实则标待验证，不伪造历史、行李或测试结果。仅修改/提交/推送 Timthn/f_checker；不部署、不订阅、不越预算。应用完成需单元、集成、关键流程测试通过，环境隔离，进度记录更新和推送核验；遇到既定停止规则写清错误和剩余工作。
 
@@ -48,4 +50,4 @@ This text is prepared for user invocation; no new goal or implementation run was
 
 ## Free deployment addendum
 
-Personal demo recommendation: Vercel Hobby + Render Free + Supabase Free. See [free-deployment](architecture/free-deployment.md) for service sleep, supervised co-located worker, disabled autonomous monitoring, account setup and billing boundaries. Deployment accounts are needed only when deployment starts; no hosting API token is needed now.
+Updated TypeScript option: frontend/API/orchestration on Vercel Hobby + Supabase Free, external Apify; see architecture/vercel-fullstack-option.md. Earlier Python personal demo alternative: Vercel Hobby + Render Free + Supabase Free. See [free-deployment](architecture/free-deployment.md) for service sleep, supervised co-located worker, disabled autonomous monitoring, account setup and billing boundaries. Deployment accounts are needed only when deployment starts; no hosting API token is needed now.

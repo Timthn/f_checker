@@ -1,0 +1,179 @@
+{
+  "evidence_kind": "live_derived_redacted_sample",
+  "actor_build": "0.0.2",
+  "query_name": "round-trip-booking",
+  "sampling": {
+    "original_array_lengths": {
+      "booking_options": 1,
+      "price_history": 61
+    },
+    "itinerary_booking_calendar_limit": 3,
+    "history_limit": 7,
+    "removed": "tokens, URLs, booking request payloads and booking phones"
+  },
+  "provider_response": {
+    "mode": "booking",
+    "endpoint": "/v1/serp/google_flights_booking",
+    "input": {},
+    "currency": "HKD",
+    "trip_type": "round_trip",
+    "legs": [
+      {
+        "segments": [
+          {
+            "departure_airport": "HKG",
+            "arrival_airport": "NRT",
+            "departure_time": "2026-11-10T14:00:00",
+            "arrival_time": "2026-11-10T19:05:00",
+            "airline": "Hong Kong Express",
+            "airline_code": "UO",
+            "flight_number": "UO 650",
+            "duration_minutes": 245,
+            "aircraft": "Airbus A321neo",
+            "cabin_class": "economy",
+            "departure_airport_name": "Hong Kong International Airport",
+            "arrival_airport_name": "Narita International Airport",
+            "operated_by": null,
+            "ticket_also_sold_by": [],
+            "legroom": "28 in",
+            "legroom_category": "below_average",
+            "overnight": false,
+            "red_eye": false,
+            "often_delayed_by_over_30_min": false,
+            "carbon_emissions_kg": 193,
+            "extensions": [
+              "Below average legroom (28 in)",
+              "Carbon emissions estimate: 193 kg"
+            ],
+            "airline_logo": "[REDACTED]"
+          }
+        ],
+        "departure_airport": "HKG",
+        "arrival_airport": "NRT",
+        "duration_minutes": 245,
+        "stops": 0,
+        "layover_airports": [],
+        "is_direct": true,
+        "layovers": [],
+        "airlines": [
+          "Hong Kong Express"
+        ],
+        "departure_time": "2026-11-10T14:00:00",
+        "arrival_time": "2026-11-10T19:05:00"
+      },
+      {
+        "segments": [
+          {
+            "departure_airport": "NRT",
+            "arrival_airport": "HKG",
+            "departure_time": "2026-11-17T08:15:00",
+            "arrival_time": "2026-11-17T12:40:00",
+            "airline": "Hong Kong Express",
+            "airline_code": "UO",
+            "flight_number": "UO 857",
+            "duration_minutes": 325,
+            "aircraft": "Airbus A321neo",
+            "cabin_class": "economy",
+            "departure_airport_name": "Narita International Airport",
+            "arrival_airport_name": "Hong Kong International Airport",
+            "operated_by": null,
+            "ticket_also_sold_by": [],
+            "legroom": "28 in",
+            "legroom_category": "below_average",
+            "overnight": false,
+            "red_eye": false,
+            "often_delayed_by_over_30_min": false,
+            "carbon_emissions_kg": 188,
+            "extensions": [
+              "Below average legroom (28 in)",
+              "Carbon emissions estimate: 188 kg"
+            ],
+            "airline_logo": "[REDACTED]"
+          }
+        ],
+        "departure_airport": "NRT",
+        "arrival_airport": "HKG",
+        "duration_minutes": 325,
+        "stops": 0,
+        "layover_airports": [],
+        "is_direct": true,
+        "layovers": [],
+        "airlines": [
+          "Hong Kong Express"
+        ],
+        "departure_time": "2026-11-17T08:15:00",
+        "arrival_time": "2026-11-17T12:40:00"
+      }
+    ],
+    "booking_options": [
+      {
+        "book_with": "Hong Kong Express",
+        "seller_code": "UO",
+        "is_airline": true,
+        "price": 2289,
+        "currency": "HKD",
+        "display_price": "HK$2,289",
+        "local_prices": [],
+        "marketed_as": [
+          "UO 650",
+          "UO 857"
+        ],
+        "seller_domain": "www.hkexpress.com/...",
+        "separate_tickets": false,
+        "sellers": [
+          "Hong Kong Express"
+        ],
+        "option_title": null,
+        "extensions": [],
+        "baggage_prices": [
+          "1 free carry-on"
+        ]
+      }
+    ],
+    "option_count": 1,
+    "cheapest_price": 2289,
+    "price_insights": {
+      "lowest_price": 2289,
+      "price_level": "typical",
+      "typical_price_range": [
+        1700,
+        3100
+      ],
+      "price_history": [
+        [
+          1786550400,
+          2479
+        ],
+        [
+          1786636800,
+          2479
+        ],
+        [
+          1786723200,
+          2479
+        ],
+        [
+          1786809600,
+          2479
+        ],
+        [
+          1786896000,
+          2479
+        ],
+        [
+          1786982400,
+          2479
+        ],
+        [
+          1787068800,
+          2479
+        ]
+      ]
+    },
+    "wire_bytes": 13276,
+    "elapsed_s": 0.327,
+    "request_id": "req_41078d1dc73d4214a6e2ba801a71d3ed",
+    "billed": true,
+    "scraped_at": "2026-10-11T17:24:00.087Z"
+  }
+}

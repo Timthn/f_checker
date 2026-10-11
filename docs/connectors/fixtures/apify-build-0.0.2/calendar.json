@@ -1,0 +1,66 @@
+{
+  "evidence_kind": "live_derived_redacted_sample",
+  "actor_build": "0.0.2",
+  "query_name": "calendar",
+  "sampling": {
+    "original_array_lengths": {
+      "prices": 3
+    },
+    "itinerary_booking_calendar_limit": 3,
+    "history_limit": 7,
+    "removed": "tokens, URLs, booking request payloads and booking phones"
+  },
+  "provider_response": {
+    "mode": "calendar",
+    "endpoint": "/v1/serp/google_flights_calendar",
+    "input": {
+      "departure_date": "2026-11-10",
+      "return_date": "2026-11-17",
+      "adults": 1,
+      "currency": "HKD",
+      "hl": "en",
+      "gl": "hk",
+      "date_window_days": 1,
+      "departure": "HKG",
+      "arrival": "NRT"
+    },
+    "departure_airport": "HKG",
+    "arrival_airport": "NRT",
+    "currency": "HKD",
+    "adults": 1,
+    "trip_type": "round_trip",
+    "prices": [
+      {
+        "departure_date": "2026-11-09",
+        "price": 2299,
+        "currency": "HKD",
+        "display_price": "HK$2,299",
+        "is_priced": true,
+        "return_date": "2026-11-17"
+      },
+      {
+        "departure_date": "2026-11-10",
+        "price": null,
+        "currency": "HKD",
+        "display_price": null,
+        "is_priced": false,
+        "return_date": "2026-11-17"
+      },
+      {
+        "departure_date": "2026-11-11",
+        "price": 2289,
+        "currency": "HKD",
+        "display_price": "HK$2,489",
+        "is_priced": true,
+        "return_date": "2026-11-17"
+      }
+    ],
+    "wire_bytes": null,
+    "elapsed_s": 0.5060374736785889,
+    "cheapest_price": 2289,
+    "coverage": "2/3",
+    "request_id": "req_64ea46186f00427babb74a5fb3ae1320",
+    "billed": true,
+    "scraped_at": "2026-10-11T17:21:09.277Z"
+  }
+}

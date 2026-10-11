@@ -1,6 +1,8 @@
 # Provider evaluation — evidence, not live certification
 
-核对日期 2026-10-11。所有航班搜索、价格、行李正确性、延迟和限流均 **待真实调用验证**。以下是公开 primary-source 文档能力；没有调用任何收费接口，没有获取真实报价。供应商 sample JSON 不是我们的实测，营销可靠性不等于证据。
+2026-10-12 update: user selected Apify; real probe results now exist in [apify-live-spike-2026-10-12.md](apify-live-spike-2026-10-12.md). The matrix below is the earlier document-only assessment, not the current provider priority. Baggage/time/grid limitations remain unconfirmed.
+
+Historical assessment date2026-10-11。所有航班搜索、价格、行李正确性、延迟和限流均 **待真实调用验证**。以下是公开 primary-source 文档能力；没有调用任何收费接口，没有获取真实报价。供应商 sample JSON 不是我们的实测，营销可靠性不等于证据。
 
 ## Capability matrix
 

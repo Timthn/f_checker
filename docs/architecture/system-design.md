@@ -1,5 +1,6 @@
 # System design v0.2
 
+2026-10-12 Vercel-oriented update: proposed Next.js/TypeScript full-stack alternative is now the prepared goal recommendation; see [vercel-fullstack-option.md](vercel-fullstack-option.md). Earlier Python details below remain an alternative; storage/contracts/acceptance stay applicable. No implementation or final stack acceptance inferred.
 建议架构；应用尚未实现。建议使用 Supabase PostgreSQL/Auth；支持本地与免费演示部署，应用尚未实现。详细模型见 [data-design.md](data-design.md)，免费托管边界见 [free-deployment.md](free-deployment.md)。
 
 ```mermaid

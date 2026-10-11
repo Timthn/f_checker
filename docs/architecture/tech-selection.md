@@ -1,5 +1,6 @@
 # Technology recommendation
 
+2026-10-12 Vercel-oriented update: proposed Next.js/TypeScript full-stack alternative is now the prepared goal recommendation; see [vercel-fullstack-option.md](vercel-fullstack-option.md). Earlier Python details below remain an alternative; storage/contracts/acceptance stay applicable. No implementation or final stack acceptance inferred.
 状态：建议而非用户最终批准；未安装版本/依赖。更新日期 2026-10-12。
 
 | Option | UI / split view | Connector/analysis | Complexity / cost | Conclusion |
