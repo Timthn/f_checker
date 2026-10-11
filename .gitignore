@@ -12,3 +12,6 @@ data/
 raw-responses/
 playwright-report/
 test-results/
+
+# Local Chromium diagnostics
+debug.log

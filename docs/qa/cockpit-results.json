@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-12",
+  "artifact": "cockpit prototype",
+  "checks": [
+    {
+      "name": "Explicit demo notice on every page shell",
+      "passed": true
+    },
+    {
+      "name": "Landing has three module entrances",
+      "passed": true
+    },
+    {
+      "name": "Ten ranked candidates",
+      "passed": true
+    },
+    {
+      "name": "Desktop 8-column two-row main card",
+      "passed": true
+    },
+    {
+      "name": "Editing form preserves current result until search",
+      "passed": true
+    },
+    {
+      "name": "Baggage fee included once",
+      "passed": true
+    },
+    {
+      "name": "Cabin affects same selected quote",
+      "passed": true
+    },
+    {
+      "name": "Chart hover updates readable observation",
+      "passed": true
+    },
+    {
+      "name": "Selected offer reaches detail accurately",
+      "passed": true
+    },
+    {
+      "name": "Three detail bands with 48px separation",
+      "passed": true
+    },
+    {
+      "name": "Thirty actual fictional history points",
+      "passed": true
+    },
+    {
+      "name": "Seven-day display changes actual series",
+      "passed": true
+    },
+    {
+      "name": "Insufficient history hides chart and signal",
+      "passed": true
+    },
+    {
+      "name": "Calendar view has separate 61-day data and label",
+      "passed": true
+    },
+    {
+      "name": "Calendar view does not apply flight history signal",
+      "passed": true
+    },
+    {
+      "name": "All three meeting alternatives initially",
+      "passed": true
+    },
+    {
+      "name": "Keyboard slider filters to nearest arrival",
+      "passed": true
+    },
+    {
+      "name": "Unverified price clearly remains unverified",
+      "passed": true
+    },
+    {
+      "name": "Verified cell identifies complete itinerary and baggage",
+      "passed": true
+    },
+    {
+      "name": "Theme toggle changes theme",
+      "passed": true
+    },
+    {
+      "name": "State loading visible",
+      "passed": true
+    },
+    {
+      "name": "State empty visible",
+      "passed": true
+    },
+    {
+      "name": "State error visible",
+      "passed": true
+    },
+    {
+      "name": "State partial visible",
+      "passed": true
+    },
+    {
+      "name": "State unknown visible",
+      "passed": true
+    },
+    {
+      "name": "State stale visible",
+      "passed": true
+    },
+    {
+      "name": "Stale suspends signal",
+      "passed": true
+    },
+    {
+      "name": "390px landing no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "390px search no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "390px meet no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "390px flex no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "Mobile traveler tabs preserve access to B",
+      "passed": true
+    },
+    {
+      "name": "390px details no overflow",
+      "passed": true
+    },
+    {
+      "name": "Reduced motion disables custom cursor",
+      "passed": true
+    },
+    {
+      "name": "No JavaScript runtime errors",
+      "passed": true
+    },
+    {
+      "name": "Offline prototype makes no HTTP requests",
+      "passed": true
+    }
+  ],
+  "passed": 36,
+  "failed": 0,
+  "application_tests": "not_implemented",
+  "live_provider": "not_executed"
+}

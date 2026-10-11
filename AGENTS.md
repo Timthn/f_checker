@@ -17,6 +17,8 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 ## Document map
 - Product and acceptance: [docs/product-spec.md](docs/product-spec.md)
 - UIUX and design states: [docs/design/uiux-spec.md](docs/design/uiux-spec.md)
+- Cockpit visual/motion rules: [docs/design/cockpit-direction.md](docs/design/cockpit-direction.md)
+- Current browser checks: [docs/qa/cockpit-verification.md](docs/qa/cockpit-verification.md)
 - Inspectable demo: [docs/design/prototype.html](docs/design/prototype.html)
 - Tech comparison: [docs/architecture/tech-selection.md](docs/architecture/tech-selection.md)
 - System: [docs/architecture/system-design.md](docs/architecture/system-design.md)
@@ -34,7 +36,7 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 Recommendation, not installed stack: Next.js/TypeScript frontend, FastAPI/Python backend, SQLite locally. Hosted database and deploy undecided. Provider choice conditional on capability spike; favor direct SearchApi evaluation, Apify alternative, not both paid by default.
 Paths kebab-case; Python identifiers snake_case; TS variables camelCase; JSON internal fields snake_case; API `/api/v1/*`; money integer minor units and ISO currency; timestamps RFC3339 UTC plus IANA zone. Offer IDs never rely on expiring booking tokens.
 
-Current runnable artifact is a self-contained HTML design, not application code. Project install/start/unit/integration commands will be recorded only when implemented and verified; do not present proposed commands as tested commands.
+Current runnable artifact is standalone HTML with local CSS/JS and vendored ECharts, not application code. For this UI task follow the user’s direct design guidance without a Superpowers workflow. Public frontend-design guidance is project-scoped under `.agents/skills/frontend-design`; do not install globally. Project install/start/unit/integration commands will be recorded only when implemented and verified; do not present proposed commands as tested commands.
 
 ## Harness and stop rules
 Record material decisions and index them here. Update progress on each stage, record evidence and next steps. Secrets in backend environment only; `.env.example` contains placeholders; never commit `.env`, credentials or replayable provider tokens. Snapshot and browser QA allowed.

@@ -1,3 +1,4 @@
+// Archived v0.1 artifact verification only. Current cockpit: tools/cockpit-qa.cjs.
 // Design-artifact verification only. Not an application unit/integration suite.
 const fs = require('fs');
 const path = require('path');
@@ -26,7 +27,7 @@ function collect(dir) { return fs.readdirSync(dir, {withFileTypes:true}).flatMap
     const errors=[];const network=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(/^https?:/.test(r.url()))network.push(r.url());});
-    await page.goto(pathToFileURL(path.join(repo,'docs/design/prototype.html')).href);
+    await page.goto(pathToFileURL(path.join(repo,'docs/design/prototype-v1.html')).href);
     check('persistent demo notice',await page.getByText('模拟数据 · 未连接航班 API · 不可用于购票',{exact:true}).isVisible());
     check('top ten demo results',await page.locator('.fare').count()===10);
     const before=await page.locator('.fare .money').first().innerText();

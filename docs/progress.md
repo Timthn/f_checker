@@ -33,3 +33,11 @@ Goal文档阶段完成：规格/评审、数据源文档研究、选型、UIUX/�
 Same-test unexplained failure streak: 0。
 Repair-validation rounds: 2。第一轮修正生成结果文件前的链接核验顺序；第二轮定位sandbox browser路径映射，使用已存在的Playwright浏览器路径（仅进程环境变量），未安装浏览器或改全局设置。当前连续失败0。
 发现问题后有依据修复并记录；stop rules见AGENTS。没有发生删除、跨仓库写入、购票、订阅或部署。
+
+## 2026-10-12 — Cockpit design revision
+
+依据用户三张截图及交互教程重做：航空画布三入口、8/4两行主次查询、48px通栏详情、双人会合及日期热力图。项目内Anthropic frontend-design参考与ECharts 5.6.0保留许可证。用户要求不用Superpowers后直接完成设计与检查。
+
+新增分层景深、导航跟随、卡片翻色、轻磁吸、分档滑杆、图表交互、主题扩散及触屏/减少动效降级。仍为虚构数据，无真实接口或最终技术栈决定。旧原型保留prototype-v1.html。
+
+浏览器36项通过，桌面/手机截图及限制见 [cockpit verification](qa/cockpit-verification.md)。本轮一次断言修正（CSS span序列化），随后优化热力图文字对比、主题图表动画和过期信号；没有未知原因重复失败。仅修改本项目。提交/推送状态以本次git核验为准。

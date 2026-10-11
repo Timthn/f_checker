@@ -5,7 +5,8 @@ Proposed: Next.js / TypeScript. Prototype is standalone HTML to review design; i
 ## Pages and state
 | Route | Purpose | Main state |
 |---|---|---|
-| `/` | fixed-date search | draft form vs submitted search; job status; results |
+| `/` | aviation canvas landing | three entrances; theme; reduced motion |
+| `/search` | fixed-date search | draft form vs submitted search; job status; results |
 | `/itineraries/[id]` | itinerary and selected offer | fare selector; historical/date-price tabs; source/scope |
 | `/meet` | rendezvous split screen | shared destination/day; independent A/B conditions; lock selection |
 | `/flex` | departure/return ranges | ranges; nights; grid; verified coverage; top five |
@@ -32,3 +33,7 @@ Avoid sending external booking URLs directly from browser input. Server validate
 
 ## QA handoff
 Component tests cover labels/state/unknown prices. E2E fixtures cover A1–A11 and A13–A15. Visual viewport checks 1440/1024/390; no horizontal page overflow, keyboard focus, long airline names, translated errors, multi-day flight labels. Live provider checks separate, credentials never embedded in client bundle or public env prefix.
+
+## Cockpit design update
+
+2026-10-12: [visual and motion direction](../design/cockpit-direction.md), [current browser verification](../qa/cockpit-verification.md). ECharts 5.6.0 is vendored only for this prototype. Production framework remains a recommendation, not a final decision.
