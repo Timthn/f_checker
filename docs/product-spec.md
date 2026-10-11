@@ -101,7 +101,7 @@ job 状态 queued/running/partial/succeeded/failed/cancelled；UI 区分 loading
 | A3 | null 行李/附加费进未知组；provider 已含费用不会双算；多币种不混排 |
 | A4 | 往返每个主榜结果显示真实去回程；只有 outbound estimate 的结果独立标注 |
 | A5 | 详情区分具体行程历史、provider 路线参考、日期价格；缺失不填零；均值/中位数可复算 |
-| A6 | Signal 7 日/7 样本、±10% 边界、M=0、可比条件变化与稀疏数据通过单元测试 |
+| A6 | Signal 7 日/7 样本、±5% 边界、M=0、可比条件变化与稀疏数据通过单元测试 |
 | A7 | 会合按目的地日历与 UTC 时间差判断；跨日和时区测试；无合格组合不改条件 |
 | A8 | 会合提供双侧信息、合计、差值、Pareto 推荐与 alternatives；候选覆盖说明可见 |
 | A9 | 灵活范围含端点、返回日期合法、停留限制、分批/取消/partial coverage 和总价核验正确 |

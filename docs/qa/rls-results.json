@@ -1,0 +1,50 @@
+{
+  "evidence": "actual_restricted_role_connections",
+  "project_ref": "fpxnoiwaytkplrfsymyp",
+  "checks": [
+    {
+      "name": "actual API role has no bypass/superuser",
+      "passed": true
+    },
+    {
+      "name": "missing context sees no rows",
+      "passed": true
+    },
+    {
+      "name": "owner A sees only A",
+      "passed": true
+    },
+    {
+      "name": "cross-owner insert denied",
+      "passed": true
+    },
+    {
+      "name": "owner B sees only B",
+      "passed": true
+    },
+    {
+      "name": "context reset after transaction",
+      "passed": true
+    },
+    {
+      "name": "API denied private provider references",
+      "passed": true
+    },
+    {
+      "name": "actual worker has no bypass/superuser",
+      "passed": true
+    },
+    {
+      "name": "worker budget preserves original reservations",
+      "passed": true
+    },
+    {
+      "name": "worker cannot create tables",
+      "passed": true
+    },
+    {
+      "name": "cross-owner parent reference denied",
+      "passed": true
+    }
+  ]
+}

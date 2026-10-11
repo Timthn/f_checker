@@ -1,0 +1,15 @@
+import {it,expect} from 'vitest';
+import economy from '../docs/connectors/fixtures/apify-build-0.0.2/economy-one-way.json';
+import round from '../docs/connectors/fixtures/apify-build-0.0.2/round-trip-search.json';
+import booking from '../docs/connectors/fixtures/apify-build-0.0.2/round-trip-booking.json';
+import empty from '../docs/connectors/fixtures/apify-build-0.0.2/round-trip-with-bags-empty.json';
+import calendar from '../docs/connectors/fixtures/apify-build-0.0.2/calendar.json';
+import {parseSearch,parseBooking,parseCalendar} from '../src/connectors/apify-adapter';
+import {en,zh} from '../src/i18n/catalog';
+import type {Search} from '../src/domain/contracts';
+const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',adults:1,cabin:'economy',currency:'HKD',carry_on:0,checked:0};
+it('parses sampled search without promoting aggregate baggage/time/history',()=>{const a=parseSearch(economy.provider_response,q);expect(a).toHaveLength(3);expect(a[0].money.minor).toBe(98900);expect(a[0].baggage).toEqual([]);expect(a[0].comparison_key).toBeNull();expect(a[0].time_verified).toBe(false);expect(JSON.stringify(a)).not.toContain('token');});
+it('distinguishes outbound-only roundtrip and valid empty envelope',()=>{expect(parseSearch(round.provider_response,{...q,return_date:'2026-11-17'}).every(o=>!o.complete)).toBe(true);expect(parseSearch(empty.provider_response,q)).toEqual([]);expect(()=>parseSearch({mode:'search'},q)).toThrow();});
+it('rejects booking from a different selected itinerary',()=>{expect(()=>parseBooking(booking.provider_response,{...q,return_date:'2026-11-17'},parseSearch(economy.provider_response,q)[0].segments)).toThrow('BOOKING_CONTEXT_MISMATCH');});
+it('calendar remains coarse with a real missing cell',()=>{const c=parseCalendar(calendar.provider_response);expect(c.map(x=>x.state)).toEqual(['coarse','unknown','coarse']);expect(c[1].money).toBeNull();});
+it('both semantic catalogs have every key',()=>{expect(Object.keys(en).sort()).toEqual(Object.keys(zh).sort());expect(Object.values(zh).every(Boolean)).toBe(true);});

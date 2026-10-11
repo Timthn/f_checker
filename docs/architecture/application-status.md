@@ -1,0 +1,26 @@
+# Local application status — 2026-10-12
+
+Selected and implemented runtime: Node24.19.0, Next16.4 / React19.3 / TypeScript7, Node Route Handlers, ECharts6.1, TanStack Query5, Zod4, pg8, Supabase Auth/PG17, Workflow5.2. Exact versions and compatible patch overrides are in package.json/package-lock.json. Earlier Python backend recommendations are superseded for this Goal. Python tools remain optional probes, not application runtime.
+
+## Implemented boundaries
+
+- Frontend: src/components/flight-deck.tsx, analysis-panels.tsx, price-chart.tsx; semantic catalogs src/i18n/catalog.ts. Light aviation canvas, responsive three-entry landing, pause/reduced-motion, 8/4 dashboard, three-band details, separate price views, controlled meeting and four-window flexible forms.
+- Domain: src/domain/contracts.ts, analysis-contracts.ts, rules.ts. Exact integer money, baggage unknown rules, quote/query binding, date-line/DST gates, seven-day history signal, UTC/Pareto meeting, Cartesian coverage. Hash version canonical-json-v1 is insensitive to JSONB object order; arrays retain order. No live private records existed when changing the earlier order-sensitive draft hash; temporary QA records are cleaned.
+- Backend: src/server/auth.ts verifies tokens with Supabase getUser; db.ts sets verified owner inside API transactions. Private cached analysis/results/details API paths are under /api/v1. The public preview publishes only recorded redacted samples.
+- Tasks: jobs.ts commits startup reservation before SDK IO, retains original job/idempotency key across client timeout, lease/global upstream concurrency, pre-I/O dispatch ledger, cumulative/monthly/user caps, cancellation and explicit needs-attention states. Only job IDs cross Workflow step arguments/returns. SDK run-start default retries are disabled. No ambiguous POST automatically repeats.
+- Provider reads: provider-reads.ts reserves each read durably; known cancelled/uncertain runs can be reconciled without POST or cancelled-result publication. Explicit reconciliation is authenticated and gated with live mode. Counters include failed reads and survive restarts. Existing Actor maxTotalCharge ceiling splits USD0.02 Actor plus USD0.01 reserved overhead; **overhead adequacy and account remaining-credit checks are unverified, so live mode must remain disabled**.
+- SQL history: Supabase CLI migrations only. Unique project fpxnoiwaytkplrfsymyp, verified TLS CA, nonowner/non-bypass fc_api/fc_worker. Migration admin credentials are isolated in ignored .env.migration; runtime .env has restricted roles only. No service-role key is needed for normal API operation.
+
+## Remaining acceptance gates
+
+This is not a completed live flight application. Search adapters deliberately cannot promote source observations to complete qualifying party fares without verified fare/baggage/time evidence. Initial round-trip search is outbound-only; the production return/booking chain and private short-lived reference lifecycle are still incomplete. Calendar fetch/verification orchestration is not implemented as a verified double-date matrix. Private history has a reader and honest insufficient state; real comparable observation writes and retention cleanup remain incomplete. Cache-only meeting/flexible analysis never fetches new dates. Historical sampling stays off.
+
+Workflow compilation and mocked orchestration tests are separate from durable local SDK execution/restart validation, which remains pending. A successful production build does not prove restart durability or Vercel quotas. Account-free-credit gating, read/storage tariff/retention costs and full final fee reconciliation remain pending; no live flag should be enabled to bypass these gates. No deployment performed.
+
+Supabase security advisor baseline reports public.rls_auto_enable() EXECUTE grants to anon/authenticated. Read-only inspection shows a default event_trigger function with pg_catalog search_path; it is outside flight runtime schema. No grant change was made. Review [Supabase remediation](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable) before any production exposure.
+
+## Evidence
+
+RLS11/11 on actual restricted connections; deterministic/mock Workflow21/21; round6 lifecycle integration10/10 (143.56s), using the earlier empty-candidate cancellation regression. The strengthened nonempty-candidate regression failed before acquiring a lease because two DB test processes were accidentally run concurrently; it remains unverified, not passed. No retry was performed after the round limit. Production build/typechecking passed with21steps/1workflow. Browser suite4/5 passed, then the corrected fifth synthetic Auth/cache scenario passed separately; no single final5/5 run or real authenticated product E2E is claimed. Clean npm ci installed476 packages, audit0, credential-free build passed; explicit Turbopack root added afterward. Clean isolated startup remains pending. No fixture test is real provider capability confirmation.
+
+Development stopped after completed round6 under the user's >5-round rule. See docs/errors/2026-10-12-goal-round-limit.md. Live mode stays disabled. Read-only budget verification after test cleanup confirmed spike reservation270000 microUSD, cap500000, new calls_reserved0; no budget reset.

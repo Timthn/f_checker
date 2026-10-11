@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.migration.example
 backend/.venv/
 node_modules/
 .next/
@@ -15,3 +16,16 @@ test-results/
 
 # Local Chromium diagnostics
 debug.log
+
+.npm-cache/
+.coverage/
+.env.local
+
+
+*.tsbuildinfo
+.workflow-data/
+.next-dev/
+src/app/.well-known/
+supabase/.temp/
+
+/.swc

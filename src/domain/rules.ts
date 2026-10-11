@@ -1,0 +1,79 @@
+import Decimal from 'decimal.js';
+import { Temporal } from '@js-temporal/polyfill';
+import { createHash } from 'node:crypto';
+import type { Money, Offer, Search, Observation, CalendarCell } from './contracts';
+export function money(value: number|string, currency: string): Money {
+  const digits = new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits ?? 2;
+  const n = new Decimal(value).mul(new Decimal(10).pow(digits));
+  if (!n.isInteger() || n.isNegative() || !n.isFinite() || n.gt(Number.MAX_SAFE_INTEGER)) throw new Error('INVALID_MONEY');
+  return {minor:n.toNumber(),currency,digits};
+}
+export function stableId(value: unknown): string {
+ const canonical=(v:unknown):unknown=>Array.isArray(v)?v.map(canonical):v!==null&&typeof v==='object'?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>[k,canonical(x)])):v;
+ return createHash('sha256').update('canonical-json-v1:'+JSON.stringify(canonical(JSON.parse(JSON.stringify(value))))).digest('hex');
+}
+export function qualifies(offer: Offer, query: Search, now=new Date()): 'confirmed'|'unknown'|'excluded' {
+  if(offer.money.currency !== query.currency || offer.segments.some(s => s.cabin !== query.cabin)) return 'excluded';
+  const outbound=offer.segments.filter(s=>s.leg_index===0),back=offer.segments.filter(s=>s.leg_index===1);
+  if(!outbound.length)return 'unknown';
+  if(outbound[0].from!==query.origin || outbound.at(-1)!.to!==query.destination || outbound[0].departure_local.slice(0,10)!==query.departure || offer.quoted_adults!==null&&offer.quoted_adults!==query.adults)return 'excluded';
+  if(query.return_date && back.length && (back[0].from!==query.destination||back.at(-1)!.to!==query.origin||back[0].departure_local.slice(0,10)!==query.return_date))return 'excluded';
+  if(!query.return_date && back.length)return 'excluded';
+  if(!offer.complete || !offer.price_complete || offer.quoted_adults===null || query.return_date&&!back.length || Date.parse(offer.expires_at)<=now.getTime() || Date.parse(offer.observed_at)>now.getTime() || now.getTime()-Date.parse(offer.observed_at)>86400000) return 'unknown';
+  for(let s=0;s<offer.segments.length;s++) for(let p=0;p<query.adults;p++) {
+    const b=offer.baggage.find(x=>x.segment===s && x.passenger===p);
+    if(!b || b.contradictory) return 'unknown';
+    if(query.carry_on>0 && (b.carry_on===null||b.carry_kg===null) || query.checked>0 && (b.checked===null||b.checked_kg===null)) return 'unknown';
+    if((b.carry_on??0)<query.carry_on || (b.checked??0)<query.checked) return 'excluded';
+  }
+  return 'confirmed';
+}
+export function rank(offers: Offer[], query: Search, now=new Date()) {
+  const valid=offers.filter(o=>qualifies(o,query,now)==='confirmed').sort((a,b)=>a.money.minor-b.money.minor || a.itinerary_id.localeCompare(b.itinerary_id));
+  const seen=new Set<string>();
+  return {confirmed:valid.filter(o=>!seen.has(o.itinerary_id) && !!seen.add(o.itinerary_id)).slice(0,10),unknown:offers.filter(o=>qualifies(o,query,now)==='unknown')};
+}
+export function localToUtc(local: string, zone: string, verifiedSemantics: boolean): string|null {
+  if(!verifiedSemantics) return null;
+  try {return Temporal.PlainDateTime.from(local).toZonedDateTime(zone,{disambiguation:'reject'}).toInstant().toString();} catch {return null;}
+}
+const median=(v:number[])=>{const a=[...v].sort((a,b)=>a-b),m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+export function history(offer:Offer, observations:Observation[], now=new Date()) {
+  const cutoff=now.getTime()-30*86400000;
+  const eligible=observations.filter(o=>o.fresh && o.comparison_key===offer.comparison_key && o.currency===offer.money.currency && o.minor>0 && Date.parse(o.observed_at)>=cutoff && Date.parse(o.observed_at)<now.getTime());
+  const groups=new Map<string,number[]>(); for(const o of eligible){const d=o.observed_at.slice(0,10);groups.set(d,[...(groups.get(d)??[]),o.minor]);}
+  const points=[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([day,values])=>({day,minor:median(values)}));
+  const values=points.map(p=>p.minor),baseline=values.length?median(values):null;
+  const span=points.length>1?(Date.parse(points.at(-1)!.day)-Date.parse(points[0].day))/86400000:0;
+  const latest=Math.max(...eligible.map(o=>Date.parse(o.observed_at)));
+  const enough=offer.complete && offer.price_complete && !!offer.comparison_key && points.length>=7 && span>=7 && now.getTime()-latest<=86400000 && Date.parse(offer.observed_at)<=now.getTime() && now.getTime()-Date.parse(offer.observed_at)<=86400000 && Date.parse(offer.expires_at)>now.getTime() && baseline!==null && baseline>0;
+  const delta=enough?(offer.money.minor-baseline!)/baseline!:null;
+  return {points,mean:values.length?values.reduce((a,b)=>a+b,0)/values.length:null,baseline,signal:delta===null?'insufficient':delta<=-.05?'low':delta>=.05?'high':'typical',delta,version:'daily-median-30d-v1'};
+}
+export function rendezvous(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
+  const pairs:{a:Offer;b:Offer;total:number;gap:number;duration:number}[]=[];
+  for(const x of a) for(const y of b){
+    if(qualifies(x,requirements.a,now)!=='confirmed'||qualifies(y,requirements.b,now)!=='confirmed')continue;
+    const sx=x.segments.filter(s=>s.leg_index===0).at(-1),sy=y.segments.filter(s=>s.leg_index===0).at(-1);
+    if(locked && x.offer_id!==locked || !x.complete || !y.complete || !x.time_verified || !y.time_verified || !sx?.arrival_utc || !sy?.arrival_utc || !sx.arrival_zone || !sy.arrival_zone || sx.to!==sy.to || x.money.currency!==y.money.currency) continue;
+    const localDay=(s:typeof sx)=>Temporal.Instant.from(s!.arrival_utc!).toZonedDateTimeISO(s!.arrival_zone!).toPlainDate().toString();
+    if(localDay(sx)!==day || localDay(sy)!==day) continue;
+    const gap=Math.abs(Date.parse(sx.arrival_utc)-Date.parse(sy.arrival_utc))/60000;
+    if(gap>maxMinutes) continue;
+    if(x.duration_minutes===null||y.duration_minutes===null)continue;
+    pairs.push({a:x,b:y,total:x.money.minor+y.money.minor,gap,duration:x.duration_minutes+y.duration_minutes});
+  }
+  return pairs.filter(p=>!pairs.some(q=>q!==p && q.total<=p.total && q.gap<=p.gap && q.duration<=p.duration && (q.total<p.total || q.gap<p.gap || q.duration<p.duration))).sort((p,q)=>p.total-q.total || p.gap-q.gap).slice(0,5);
+}
+export function datePairs(from:string,to:string,returnFrom:string,returnTo:string,limit=400) {
+  const expand=(a:string,b:string)=>{const ds=[];for(let d=Temporal.PlainDate.from(a);Temporal.PlainDate.compare(d,b)<=0;d=d.add({days:1})){ds.push(d.toString());if(ds.length>limit)throw Error('QUOTA');}return ds;};
+  const a=expand(from,to),b=expand(returnFrom,returnTo);if(a.length*b.length>limit)throw Error('QUOTA');
+  return a.flatMap(departure=>b.map(return_date=>({departure,return_date}))); // UTC/nights validation occurs after complete quote, not local-date prefilter.
+}
+export function validStay(out:Offer,back:Offer,min:number,max:number) {
+  const a=out.segments.at(-1),r=back.segments[0];if(!a?.arrival_utc || !a.arrival_zone || !r?.departure_utc || !out.time_verified || !back.time_verified || Date.parse(r.departure_utc)<=Date.parse(a.arrival_utc))return false;
+  const arrival=Temporal.Instant.from(a.arrival_utc).toZonedDateTimeISO(a.arrival_zone).toPlainDate();
+  const departure=Temporal.Instant.from(r.departure_utc).toZonedDateTimeISO(a.arrival_zone).toPlainDate();
+  const nights=arrival.until(departure).days;return nights>=min && nights<=max;
+}
+export function coverage(cells:CalendarCell[],total:number,currency:string,qualifyingOfferIds:Set<string>){const unique=[...new Map(cells.map(c=>[`${c.departure}/${c.return_date??''}`,c])).values()];const verified=unique.filter(c=>c.state==='verified'&&c.money?.currency===currency&&c.offer_id&&qualifyingOfferIds.has(c.offer_id));return {total,searched:unique.length,verified:verified.length,minimum:verified.length?verified.reduce((a,b)=>a.money!.minor<=b.money!.minor?a:b):null};}
