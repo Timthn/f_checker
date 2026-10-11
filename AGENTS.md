@@ -3,7 +3,7 @@
 ## Scope and authority
 Only work in `C:/Users/Tim Ngan/Desktop/projects/f_checker` and only commit/push to `https://github.com/Timthn/f_checker` (SSH equivalent permitted). Before any Git write, verify root, branch and origin. Never change other repositories. Deletes must resolve inside this project; preserve user work. No core OS/global dependency changes, purchases, ticket issuance or deployment.
 
-Current goal: actual application development (2026-10-12), stopped at the user's cumulative round limit after round6. Do not resume automatic implementation until the user decides the next step. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. See docs/errors/2026-10-12-goal-round-limit.md.
+Current goal: actual application development (2026-10-12). User authorized resumption and extended the cumulative round limit to10 on2026-10-12. Completed count8 is preserved. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
@@ -52,7 +52,7 @@ Current runnable application is Next.js/TypeScript in src; docs/design/prototype
 ## Harness and stop rules
 Record material decisions and index them here. Update progress on each stage, record evidence and next steps. Secrets in backend environment only; `.env.example` contains placeholders; never commit `.env`, credentials or replayable provider tokens. Snapshot and browser QA allowed.
 Current application completion requires unit/integration/critical-flow checks, clean isolated install/start, progress update and verified push to this repo. Earlier preflight completion does not satisfy this application Goal.
-Stop affected retries if the same test fails three consecutive times without identified cause, or more than five goal-wide implementation/verification/independent-review rounds occur without meeting success conditions (including partially successful rounds; record the count in progress). Write `docs/errors/YYYY-MM-DD-topic.md`, preserve work, update progress. Never weaken tests or reset counters by renaming them.
+Stop affected retries if the same test fails three consecutive times without identified cause, or more than ten goal-wide implementation/verification/independent-review rounds occur without meeting success conditions (including partially successful rounds; record the count in progress). User extended the original five-round limit to10 on2026-10-12; count6 and original budget are retained. Write `docs/errors/YYYY-MM-DD-topic.md`, preserve work, update progress. Never weaken tests or reset counters by renaming them.
 
 ## Instruction isolation
 This file applies within this repository only. No existing AGENTS.md/CLAUDE.md was replaced. Checked ancestor paths contained no such files at creation. System/developer and user instructions still apply; this file does not override them. Newly discovered ancestor instructions must be reported, not silently ignored.
@@ -61,10 +61,11 @@ This file applies within this repository only. No existing AGENTS.md/CLAUDE.md w
 ## Actual development index
 - Plan: docs/plans/2026-10-12-development.md
 - Runtime: bundled Node24.19.0; dependencies installed only locally with lockfile after engine verification.
-- Goal-wide completed implementation/verification/review rounds:6. User stop rule triggered; Goal not complete.
+- Goal-wide completed implementation/verification/review rounds:8. User authorized resumption with cumulative limit10; Goal not complete.
 - Current architecture and pending gates: docs/architecture/application-status.md
 - Stop checkpoint and remaining acceptance: docs/errors/2026-10-12-goal-round-limit.md
 - Local commands/configuration: README.md, package.json, package-lock.json, next.config.ts, .env.example, .env.migration.example
 - Runtime contracts/catalog: src/domain/contracts.ts, src/domain/rules.ts, src/i18n/catalog.ts
 - Connector/workflow: src/connectors/apify-rest.ts, src/connectors/apify-adapter.ts, src/server/jobs.ts, src/server/provider-reads.ts, src/workflows/
+- Private bounded return/booking chain: src/connectors/apify-chain.ts, src/server/provider-chain.ts; decision docs/decisions/0002-bounded-provider-chain.md
 - Migration authority and tests: supabase/migrations/, tests/, tools/rls-check.cjs

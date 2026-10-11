@@ -5,7 +5,7 @@ export async function reserveRead(owner:string,callId:string){return transaction
  const {rows}=await c.query('update flight.provider_calls set reads_reserved=reads_reserved+1 where owner_id=$1 and call_id=$2 and reads_reserved<read_cap returning call_id',[owner,callId]);if(!rows.length)throw Error('READ_BUDGET_EXCEEDED');
 });}
 export async function reconcileKnownRun(owner:string,jobId:string){
- const row=await transaction('worker',null,async c=>(await c.query("select j.status,j.cancelled_at,j.lease_version,p.call_id,p.run_id,p.phase from flight.jobs j join flight.provider_calls p using(owner_id,job_id) where j.owner_id=$1 and j.job_id=$2 and p.operation_key='search' and (j.cancelled_at is not null or j.status='uncertain' and (j.lease_until is null or j.lease_until<now()))",[owner,jobId])).rows[0]);
+ const row=await transaction('worker',null,async c=>(await c.query("select j.status,j.cancelled_at,j.lease_version,p.call_id,p.run_id,p.phase from flight.jobs j join flight.provider_calls p using(owner_id,job_id) where j.owner_id=$1 and j.job_id=$2 and (j.cancelled_at is not null or j.status='uncertain' and (j.lease_until is null or j.lease_until<now())) order by (p.phase not in ('succeeded','failed')) desc,p.created_at desc limit 1",[owner,jobId])).rows[0]);
  if(!row?.run_id)return null;if(['succeeded','failed'].includes(row.phase))return {status:row.status,provider_finished:true};
  await reserveRead(owner,row.call_id);const run=await runStatus(row.run_id),terminal=['SUCCEEDED','FAILED','TIMED-OUT','ABORTED'].includes(run.status);
  if(terminal)await transaction('worker',null,async c=>{

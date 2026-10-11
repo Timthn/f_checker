@@ -68,11 +68,13 @@ export async function saveRun(job:Job,callId:string,runId:string,datasetId:strin
 export async function completeCall(job:Job,callId:string,offers:Offer[],reportedMicrousd:number|null){return transaction('worker',null,async c=>{
  const lock=await c.query('select lease_version,lease_until,cancelled_at,status from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id]);if(lock.rows[0]?.lease_version!==job.lease_version)throw Error('LEASE_LOST');
  if(lock.rows[0].cancelled_at){
+  await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
   await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2 and job_id=$4",[job.owner_id,callId,reportedMicrousd,job.job_id]);
   await c.query('insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing',[job.owner_id,job.job_id,callId,{count:0,cancelled:true}]);
   await c.query("update flight.jobs set status='cancelled',lease_until=null where owner_id=$1 and job_id=$2 and status not in ('partial','succeeded')",[job.owner_id,job.job_id]);return;
  }
  if(!validLease(lock.rows[0].lease_until))throw Error('LEASE_LOST');
+ await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
  for(let i=0;i<offers.length;i++){const o=offers[i];await c.query('insert into flight.offers(owner_id,offer_id,job_id,itinerary_id,comparison_key,provider_result_key,observed_at,expires_at,payload) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(owner_id,job_id,provider_result_key) do nothing',[job.owner_id,o.offer_id,job.job_id,o.itinerary_id,o.comparison_key,`${callId}:${i}`,o.observed_at,o.expires_at,o]);}
  await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2",[job.owner_id,callId,reportedMicrousd]);
  await c.query("insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing",[job.owner_id,job.job_id,callId,{count:offers.length}]);
@@ -80,7 +82,7 @@ export async function completeCall(job:Job,callId:string,offers:Offer[],reported
 });}
 export async function failJob(job:Job,code:string,uncertain:boolean){return transaction('worker',null,async c=>{
  const {rows}=await c.query("update flight.jobs set status=case when cancelled_at is not null then 'cancelled' else $1 end,safe_error=$2,lease_until=null where owner_id=$3 and job_id=$4 and lease_version=$5 returning job_id",[uncertain?'uncertain':'failed',code,job.owner_id,job.job_id,job.lease_version]);
- if(rows.length)await c.query("update flight.provider_calls set phase=$3 where owner_id=$1 and job_id=$2 and phase in ('dispatching','running')",[job.owner_id,job.job_id,uncertain?'uncertain':'failed']);
+ if(rows.length){await c.query("update flight.provider_calls set phase=$3 where owner_id=$1 and job_id=$2 and phase in ('dispatching','running')",[job.owner_id,job.job_id,uncertain?'uncertain':'failed']);await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);}
 });}
 export async function suspendJob(id:string,capacity:boolean,workflowId?:string){return transaction('worker',null,async c=>{
  await c.query("update flight.jobs set status=case when cancelled_at is not null then 'cancelled' when $2 then 'queued' else 'uncertain' end,phase='needs_attention',safe_error=case when $2 then 'WORKER_CAPACITY' else 'POLL_LIMIT_RECONCILE' end,lease_until=null,workflow_id=case when $2 then null else workflow_id end where job_id=$1 and status in ('queued','running') and ($3::text is null or workflow_id=$3) and (not $2 or status='queued' and (lease_until is null or lease_until<now()))",[id,capacity,workflowId??null]);

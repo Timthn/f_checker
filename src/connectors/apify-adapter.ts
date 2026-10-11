@@ -22,7 +22,7 @@ export function parseBooking(raw:unknown,query:Search,selected:Segment[]):Offer[
   const data=booking.parse(raw),ss=segments(data.legs);
   const actual=stableId(ss.map(s=>[s.from,s.to,s.departure_local,s.arrival_local,s.flight]));
   const expected=stableId(selected.map(s=>[s.from,s.to,s.departure_local,s.arrival_local,s.flight]));
-  if(actual!==expected || ss.some(s=>s.cabin!==query.cabin) || data.legs.length!==(query.return_date?2:1))throw Error('BOOKING_CONTEXT_MISMATCH');
+  if(actual!==expected || ss.some(s=>s.cabin!==query.cabin) || data.legs.length!==(query.return_date?2:1) || data.trip_type!==(query.return_date?'round_trip':'one_way'))throw Error('BOOKING_CONTEXT_MISMATCH');
   // Baggage free-text has no per-segment/per-passenger evidence. Never manufacture checked allowance or weights.
   return data.booking_options.filter(o=>o.currency===query.currency).map(o=>({offer_id:randomUUID(),itinerary_id:actual,comparison_key:null,money:money(o.price,o.currency),segments:ss,baggage:[],price_complete:false,quoted_adults:null,duration_minutes:null,complete:true,fare_identity:null,source:'apify/build0.0.2/booking',observed_at:data.scraped_at,expires_at:new Date(Date.parse(data.scraped_at)+900000).toISOString(),time_verified:false}));
 }

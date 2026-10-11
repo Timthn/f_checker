@@ -4,6 +4,8 @@ Local bilingual flight dashboard using Next.js/TypeScript, Supabase and a gated 
 
 Requires Node24. Dependencies are project-local, pinned and locked. With Node24 on the current shell's PATH:
 
+Build/dev use Next's supported Webpack mode: the local Turbopack Workflow loader failed to start its child process during round7. Webpack production compilation/typechecking passed; this does not prove actual durable Workflow recovery.
+
 ```text
 npm ci
 npm run build
