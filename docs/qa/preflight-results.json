@@ -1,0 +1,188 @@
+{
+  "kind": "design_artifact_checks_only",
+  "generated_at": "2026-10-11T15:43:16.507Z",
+  "checks": [
+    {
+      "name": "JSON explicitly fictional",
+      "passed": true
+    },
+    {
+      "name": "example segment UTC chronology",
+      "passed": true
+    },
+    {
+      "name": "example baggage not double counted",
+      "passed": true
+    },
+    {
+      "name": "persistent demo notice",
+      "passed": true
+    },
+    {
+      "name": "top ten demo results",
+      "passed": true
+    },
+    {
+      "name": "baggage input changes illustrative price",
+      "passed": true
+    },
+    {
+      "name": "business cabin updates result",
+      "passed": true
+    },
+    {
+      "name": "details navigation",
+      "passed": true
+    },
+    {
+      "name": "calendar scope separate",
+      "passed": true
+    },
+    {
+      "name": "insufficient signal state",
+      "passed": true
+    },
+    {
+      "name": "meeting gap filters pairs",
+      "passed": true
+    },
+    {
+      "name": "flex verified selection",
+      "passed": true
+    },
+    {
+      "name": "flex unverified selection",
+      "passed": true
+    },
+    {
+      "name": "preview state loading",
+      "passed": true
+    },
+    {
+      "name": "preview state empty",
+      "passed": true
+    },
+    {
+      "name": "preview state error",
+      "passed": true
+    },
+    {
+      "name": "preview state partial",
+      "passed": true
+    },
+    {
+      "name": "preview state unknown",
+      "passed": true
+    },
+    {
+      "name": "390px no page overflow search",
+      "passed": true
+    },
+    {
+      "name": "390px no page overflow meet",
+      "passed": true
+    },
+    {
+      "name": "390px no page overflow flex",
+      "passed": true
+    },
+    {
+      "name": "mobile B tab",
+      "passed": true
+    },
+    {
+      "name": "no browser JS errors",
+      "passed": true
+    },
+    {
+      "name": "prototype sends no HTTP requests",
+      "passed": true
+    },
+    {
+      "name": "link docs\\connectors\\data-contract.md -> example-offer.json",
+      "passed": true
+    },
+    {
+      "name": "link docs\\design\\uiux-spec.md -> prototype.html",
+      "passed": true
+    },
+    {
+      "name": "link docs\\qa\\preflight-verification.md -> ../../tools/preflight-qa.cjs",
+      "passed": true
+    },
+    {
+      "name": "link docs\\qa\\preflight-verification.md -> preflight-results.json",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/product-spec.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/design/uiux-spec.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/design/prototype.html",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/architecture/tech-selection.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/architecture/system-design.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/architecture/frontend-spec.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/architecture/backend-spec.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/connectors/provider-evaluation.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/connectors/data-contract.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/connectors/credentials-budget.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/reviews/product-review.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/decisions/0001-preflight.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/progress.md",
+      "passed": true
+    },
+    {
+      "name": "link AGENTS.md -> docs/qa/preflight-verification.md",
+      "passed": true
+    },
+    {
+      "name": "link README.md -> AGENTS.md",
+      "passed": true
+    },
+    {
+      "name": "link README.md -> docs/design/prototype.html",
+      "passed": true
+    },
+    {
+      "name": "link README.md -> docs/connectors/credentials-budget.md",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external_requests": []
+}
