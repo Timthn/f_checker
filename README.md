@@ -1,4 +1,4 @@
-# F Checker
+# Flight cheaker
 
 开发前规格与设计交付，2026-10-11。尚未实现应用、未安装应用依赖、未部署。
 
@@ -9,3 +9,5 @@
 当前不需要 API Key 来审阅这些交付物。真实验证所需凭证和预算见 [credentials-budget](docs/connectors/credentials-budget.md)。不要把 Token 放到聊天或 Git。
 
 2026-10-12 驾驶舱设计更新：参考用户截图完成8/4主次布局、48px通栏详情、ECharts动态图表及按需交互。见 [设计方向](docs/design/cockpit-direction.md) 与 [浏览器验证](docs/qa/cockpit-verification.md)。
+
+2026-10-12：首页按视口自适应，飞机/航线动效可暂停；支持中文/EN全页面切换及语言记忆。前后端语言处理约定见 [双语规范](docs/architecture/localization-spec.md)。

@@ -12,4 +12,10 @@ One test assertion repair: CSS `grid-column: span 8` is reported as `gridColumnS
 
 Historical preflight checks target `prototype-v1.html`; their original results are retained separately. Current results are generated only by `tools/cockpit-qa.cjs`.
 
-Limitations: all offers/history are fictional, Meet/Flex query windows are fixed examples, no API or booking flow, no persistence, theme transition falls back when unsupported. Public skill and ECharts retain their supplied licenses.
+Limitations: all offers/history are fictional, Meet/Flex query windows are fixed examples, no API or booking flow, no fare persistence (language preference is stored locally), theme transition falls back when unsupported. Public skill and ECharts retain their supplied licenses.
+
+## Responsive scene and bilingual verification
+
+2026-10-12: `tools/locale-layout-qa.cjs` adds 39 passing checks; [results](locale-layout-results.json). Desktop fit/no-overlap verified at1440×900,1280×800,1024×768,820×740; flowing layouts verified at700×900 and390×844. Plane position changes, pause works and reduced motion disables movement. Chinese/English coverage includes all five views, alternate price chart, insufficient data, all search states, changed baggage/cabin, chart axis names and mobile views; switching preserves the HKD7,040 business/checked-bag demo quote, remembers language on reload and restores Chinese. No runtime errors. English screenshots are `screenshots/bilingual-*`; original36-check cockpit regression also rerun.
+
+Verified rendering is based on local Chromium. Backend language behavior remains a specification, not implemented integration. Prototype locale adapter is deliberately replaceable by semantic message catalogs in the chosen production stack.

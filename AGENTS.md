@@ -8,6 +8,7 @@ Current goal: development-preflight documents and design only. Do not implement 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
 ## Confirmed product decisions
+- User-facing brand is `Flight cheaker` (user-provided spelling, 2026-10-12). Repository/path remain f_checker.
 - Four features: top-ten filtered offers, two price views with signal, split-screen rendezvous, flexible departure/return ranges.
 - Economy and business; baggage includes carry-on versus checked, not a single ambiguous yes/no flag.
 - User confirmed both same-trip observed price history and neighboring travel-date prices as separate views.
@@ -22,6 +23,7 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 - Inspectable demo: [docs/design/prototype.html](docs/design/prototype.html)
 - Tech comparison: [docs/architecture/tech-selection.md](docs/architecture/tech-selection.md)
 - System: [docs/architecture/system-design.md](docs/architecture/system-design.md)
+- Bilingual UI/API contract: [docs/architecture/localization-spec.md](docs/architecture/localization-spec.md)
 - Frontend: [docs/architecture/frontend-spec.md](docs/architecture/frontend-spec.md)
 - Backend: [docs/architecture/backend-spec.md](docs/architecture/backend-spec.md)
 - Provider evidence: [docs/connectors/provider-evaluation.md](docs/connectors/provider-evaluation.md)

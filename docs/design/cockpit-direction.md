@@ -76,3 +76,7 @@ Revised the initial all-dark cockpit proposal after seeing the references: the m
 ## Daylight palette — current default
 
 2026-10-12 用户要求更浅色系。默认采用浅雾灰画布 #f0f4ef、近白面板 #fcfdf9、柔和青绿 #346d68、暖杏 #f3d1a8 与淡奶油 #f8edc9；正文为深灰绿 #223f3e。三个首页入口也改为浅色，航线/网格改为低饱和深青，确保浅背景上可辨。推荐卡保留暖色视觉重心；详情近白、日期推荐浅鼠尾草绿。深色主题仍可由右上角切换。
+
+## Responsive animated landing and brand
+
+2026-10-12: user-facing brand is **Flight cheaker**, exactly as supplied. Desktop landing fills the available viewport after header, notice, footer and outer margins, with a650px minimum shell height for legibility on very short windows. 601–760px uses a two-column flowing layout; phones stack naturally. The plane floats with a small bank over7s, route dashes flow over3/4.5s and a subtle radar sector rotates over24s. This animation is explicitly illustrative. A visible pause control stops all scene animations; reduced motion disables them. User explicitly requested animation, superseding the earlier no-loop preference for this scene. Prices and controls do not move.

@@ -54,3 +54,7 @@ Desktop：左侧200px导航、主区域最大1440px，sticky顶部查询摘要�
 [prototype.html](prototype.html) 是离线可点击原型，演示四个页面、行李/舱位对示意价格的变化、Signal图、会合等待阈值、flex日期选择和状态切换。全程顶部标记“模拟数据 · 未连接航班API”。它不是实际数据验证、正式前端实现或 Figma 文件。
 
 不能在本阶段宣称可访问性全面合规；需在真实组件实现后再做键盘/屏幕阅读器测试。原型验证桌面及390px布局、控件交互和JS错误；验证报告在 docs/qa。
+
+## Bilingual copy and landing update
+
+Display name: Flight cheaker. Header offers 中文 / EN with remembered selection. All prototype pages, charts, states and accessible labels switch language. Inner-page headings use direct function names; slogans are concentrated on the landing. Desktop landing fits the available viewport; illustration is animated with pause/reduced-motion support. Details: [localization contract](../architecture/localization-spec.md).

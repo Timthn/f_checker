@@ -40,3 +40,7 @@ Integration: DB lease/idempotency/restart, HTTP adapter fixtures, true empty vs 
 Live smoke: approved provider/date route, ≤40 calls, no PII; verify response, matching provider interface and billed units. No claim unit fixtures certify live baggage correctness.
 
 Environment planned `.venv`, project lock, migration and startup smoke on clean machine environment. Actual commands and pinned versions to be documented when implemented; currently no unit/integration test suite exists.
+
+## Bilingual product requirement
+
+Confirmed 2026-10-12: Chinese and English across the full stack. Follow [localization-spec.md](localization-spec.md) for locale resolution, language-neutral canonical data, error codes and translated user messages. Backend behavior is specified for future implementation; only prototype UI localization currently runs.

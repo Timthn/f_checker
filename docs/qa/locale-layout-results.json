@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-12",
+  "checks": [
+    {
+      "name": "Requested brand spelling",
+      "passed": true
+    },
+    {
+      "name": "1440x900 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "1440x900 landing fits viewport",
+      "passed": true
+    },
+    {
+      "name": "1280x800 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "1280x800 landing fits viewport",
+      "passed": true
+    },
+    {
+      "name": "1024x768 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "1024x768 landing fits viewport",
+      "passed": true
+    },
+    {
+      "name": "820x740 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "820x740 landing fits viewport",
+      "passed": true
+    },
+    {
+      "name": "700x900 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "390x844 entries readable without overlap",
+      "passed": true
+    },
+    {
+      "name": "Aircraft changes position over time",
+      "passed": true
+    },
+    {
+      "name": "Pause stops all scene animation",
+      "passed": true
+    },
+    {
+      "name": "English selected",
+      "passed": true
+    },
+    {
+      "name": "English landing fully translated",
+      "passed": true
+    },
+    {
+      "name": "English search fully translated",
+      "passed": true
+    },
+    {
+      "name": "English details fully translated",
+      "passed": true
+    },
+    {
+      "name": "English calendar chart axis",
+      "passed": true
+    },
+    {
+      "name": "English calendar labels",
+      "passed": true
+    },
+    {
+      "name": "English insufficient history",
+      "passed": true
+    },
+    {
+      "name": "English meet fully translated",
+      "passed": true
+    },
+    {
+      "name": "English flex fully translated",
+      "passed": true
+    },
+    {
+      "name": "English loading state",
+      "passed": true
+    },
+    {
+      "name": "English empty state",
+      "passed": true
+    },
+    {
+      "name": "English error state",
+      "passed": true
+    },
+    {
+      "name": "English partial state",
+      "passed": true
+    },
+    {
+      "name": "English unknown state",
+      "passed": true
+    },
+    {
+      "name": "English stale state",
+      "passed": true
+    },
+    {
+      "name": "English success state",
+      "passed": true
+    },
+    {
+      "name": "Locale preserves query values",
+      "passed": true
+    },
+    {
+      "name": "English updated fare",
+      "passed": true
+    },
+    {
+      "name": "English mobile landing no overflow",
+      "passed": true
+    },
+    {
+      "name": "English mobile search no overflow",
+      "passed": true
+    },
+    {
+      "name": "English mobile meet no overflow",
+      "passed": true
+    },
+    {
+      "name": "English mobile flex no overflow",
+      "passed": true
+    },
+    {
+      "name": "Locale survives reload",
+      "passed": true
+    },
+    {
+      "name": "Chinese restored",
+      "passed": true
+    },
+    {
+      "name": "Reduced motion disables plane animation",
+      "passed": true
+    },
+    {
+      "name": "No runtime errors",
+      "passed": true
+    }
+  ],
+  "passed": 39,
+  "failed": 0
+}

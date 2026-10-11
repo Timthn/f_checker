@@ -32,3 +32,66 @@ body.light .coverage-bar{background:#d5e4da}
 body.light .range-meter i{background:#254d44}
 body.light .person-avatar.amber{color:#223f3e}
 body.light .person-tabs button.selected,body.light .matrix-table button.picked{color:#fff}
+
+/* Fit the landing canvas to the available desktop viewport. */
+@media(min-width:761px){
+ .app-shell:has(#landing:not([hidden])){height:calc(100svh - 44px);min-height:650px;display:flex;flex-direction:column}
+ .app-shell:has(#landing:not([hidden])) .topbar,.app-shell:has(#landing:not([hidden])) .demo-notice,.app-shell:has(#landing:not([hidden])) footer{flex-shrink:0}
+ .app-shell:has(#landing:not([hidden])) main{flex:1;min-height:0}
+ .app-shell:has(#landing:not([hidden])) .landing{height:100%;min-height:0}
+ .landing-copy{top:7%;left:4%;max-width:51%}
+ .landing-copy h1{font-size:clamp(36px,4.6vw,69px);margin:20px 0 18px}
+ .entry-search{left:4%;bottom:60px;width:26%;max-width:350px}
+ .entry-meet{right:3%;top:7%;width:24%;max-width:302px}
+ .entry-flex{right:4%;bottom:60px;width:24%;max-width:294px}
+ .entry{padding:21px}
+ .entry-route{font-size:clamp(28px,3vw,44px)}
+ .entry-description{font-size:11px}
+ .entry-foot{margin-top:17px;padding-top:13px}
+ .airspace{inset:0;transform:none;filter:none}
+ .airspace svg{transform:none}
+ .canvas-caption{left:4%;right:4%;bottom:18px;align-items:center}
+}
+@media(min-width:761px) and (max-width:1200px){
+ .app-shell:has(#landing:not([hidden])){height:calc(100svh - 24px)}
+ .landing-copy h1{font-size:clamp(34px,4.3vw,50px)}
+ .landing-copy p{font-size:13px}
+ .entry{padding:17px}
+ .entry-meet .entry-foot{display:none}
+ .meet-route{font-size:19px;margin:16px 0}
+ .entry-route{font-size:30px}
+ .entry-label{font-size:13px}
+}
+@media(min-width:761px) and (max-height:850px){
+ .landing-copy{top:6%}.landing-copy h1{font-size:clamp(34px,4vw,54px);margin:15px 0}.landing-copy p{font-size:13px;line-height:1.7}
+ .entry{padding:17px}.entry-meet{top:6%}.entry-search,.entry-flex{bottom:52px}
+ .entry-foot{margin-top:12px;padding-top:10px}.entry-route{margin:9px 0 5px;font-size:32px}
+ .meet-route{margin:14px 0;font-size:20px}.mini-calendar{margin:14px 0}.mini-calendar i{height:18px}
+ .entry-meet .entry-foot{display:none}
+}
+@media(min-width:601px) and (max-width:760px){
+ .landing{height:auto;padding:35px 26px 20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+ .landing-copy{position:relative;inset:auto;grid-column:span 2;max-width:100%;margin-bottom:220px}
+ .landing-copy h1{font-size:48px}.entry{position:relative;inset:auto;width:auto;transform:none;backdrop-filter:none}
+ .entry-search{grid-column:span 2}.entry-meet .entry-foot{display:flex}.entry-route{font-size:36px}
+ .airspace{height:640px;transform:none;filter:none}.airspace svg{transform:none}.canvas-caption{position:relative;inset:auto;grid-column:span 2;flex-wrap:wrap;align-items:center;gap:10px}
+}
+.aircraft-float{transform-box:fill-box;transform-origin:center;animation:aircraft-cruise 7s ease-in-out infinite}
+.route-flow{stroke-dasharray:7 13;animation:route-travel 3s linear infinite}
+.route-secondary{animation-duration:4.5s;animation-direction:reverse}
+.radar-sweep{transform-origin:825px 394px;animation:radar-turn 24s linear infinite}
+@keyframes aircraft-cruise{0%,100%{transform:translate(0,0) rotate(-.7deg)}50%{transform:translate(8px,-9px) rotate(.7deg)}}
+@keyframes route-travel{to{stroke-dashoffset:-80}}
+@keyframes radar-turn{to{transform:rotate(360deg)}}
+#motion-toggle{border:1px solid var(--line);background:var(--panel);border-radius:20px;padding:5px 10px;color:var(--muted);font-size:10px;white-space:nowrap}
+.motion-paused .aircraft-float,.motion-paused .route-flow,.motion-paused .radar-sweep{animation-play-state:paused}
+@media(max-width:600px){.canvas-caption{flex-wrap:wrap;align-items:center}.canvas-caption>span:first-child{width:100%}.brand{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.aircraft-float,.route-flow,.radar-sweep{animation:none!important}}
+
+#language-toggle{border:1px solid var(--line);border-radius:18px;background:var(--panel);color:var(--mist);padding:6px 10px;font-size:11px;min-width:40px}
+html[lang=en] .filter-row{gap:15px}
+html[lang=en] .hero-price small{max-width:250px}
+html[lang=en] .entry-description{line-height:1.6}
+html[lang=en] .entry-route{font-size:clamp(27px,3vw,42px)}
+@media(min-width:761px) and (max-width:1100px){html[lang=en] .entry-foot{font-size:10px}html[lang=en] .entry-description{font-size:10px}.brand{font-size:20px}.topbar{gap:12px}}
+@media(max-width:600px){.header-tools{gap:7px}.brand{font-size:18px}.brand svg{width:26px}.brand small{font-size:9px}.topbar{gap:10px}.avatar{width:28px;height:28px}.topbar{padding:15px 14px}html[lang=en] nav button{font-size:11px;padding-inline:8px}html[lang=en] .fare .price{max-width:127px}html[lang=en] .fare h3{font-size:11px}html[lang=en] .hero-price small{max-width:100%}}

@@ -37,3 +37,7 @@ Component tests cover labels/state/unknown prices. E2E fixtures cover A1–A11 a
 ## Cockpit design update
 
 2026-10-12: [visual and motion direction](../design/cockpit-direction.md), [current browser verification](../qa/cockpit-verification.md). ECharts 5.6.0 is vendored only for this prototype. Production framework remains a recommendation, not a final decision.
+
+## Bilingual product requirement
+
+Confirmed 2026-10-12: Chinese and English across the full stack. Follow [localization-spec.md](localization-spec.md) for locale resolution, language-neutral canonical data, error codes and translated user messages. Backend behavior is specified for future implementation; only prototype UI localization currently runs.

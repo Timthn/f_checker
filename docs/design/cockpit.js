@@ -30,7 +30,7 @@ function calendarData() {
 }
 function priceSignal() { const m=median(historyData().map(d=>d.value)),delta=(selectedFare().price/m-1)*100;return {label:delta<=-5?'偏低 ↘':delta>=5?'偏高 ↗':'适中 →',delta}; }
 function getChart(id) {
-  if (!charts[id]) charts[id] = echarts.init($(id),null,{renderer:'canvas'});
+  if (!charts[id]) { charts[id] = echarts.init($(id),null,{renderer:'canvas'}); const originalSet=charts[id].setOption.bind(charts[id]); charts[id].setOption=(option,...args)=>originalSet(window.flightLocale.option(option),...args); }
   return charts[id];
 }
 function lineOption(data, compact=false) {
@@ -101,7 +101,7 @@ all('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
 window.addEventListener('hashchange',()=>showView(location.hash.slice(1)||'landing',false));
 window.addEventListener('popstate',()=>showView(location.hash.slice(1)||'landing',false));
 $('search-form').addEventListener('input',()=>{set('query-status','条件已修改，需重新查询');$('return-field').hidden=$('trip').value==='oneway';$('retdate').required=$('trip').value==='roundtrip';});
-$('search-form').onsubmit=e=>{e.preventDefault();const next=Object.fromEntries(Object.keys(query).map(k=>[k,$(k).value]));next.origin=next.origin.toUpperCase();next.dest=next.dest.toUpperCase();if(next.origin===next.dest){$('state-content').innerHTML='<div class="notice">出发与到达机场不能相同。</div>';return;}if(next.trip==='roundtrip'&&next.retdate<next.outdate){$('state-content').innerHTML='<div class="notice">这个演示仅支持返回日不早于出发日。跨日期变更线行程将在正式数据接入后按 UTC 校验。</div>';return;}query=next;set('search-title',`下一站，${city(query.dest)}。`);buildFares();$('state').value='success';renderState();set('query-status','已更新模拟结果 / 未发起真实查询');};
+$('search-form').onsubmit=e=>{e.preventDefault();const next=Object.fromEntries(Object.keys(query).map(k=>[k,$(k).value]));next.origin=next.origin.toUpperCase();next.dest=next.dest.toUpperCase();if(next.origin===next.dest){$('state-content').innerHTML='<div class="notice">出发与到达机场不能相同。</div>';return;}if(next.trip==='roundtrip'&&next.retdate<next.outdate){$('state-content').innerHTML='<div class="notice">这个演示仅支持返回日不早于出发日。跨日期变更线行程将在正式数据接入后按 UTC 校验。</div>';return;}query=next;set('search-title','航班查询');buildFares();$('state').value='success';renderState();set('query-status','已更新模拟结果 / 未发起真实查询');};
 $('hero-details').onclick=()=>{chartMode='history';showView('details');};$('explore-dates').onclick=()=>{chartMode='dates';showView('details');};
 all('[data-chart]').forEach(b=>b.onclick=()=>{chartMode=b.dataset.chart;renderDetails();});
 $('chart-range').onchange=renderDetails;$('history-state').onclick=()=>{insufficient=!insufficient;renderDetails();};
@@ -123,3 +123,11 @@ document.addEventListener('pointermove',e=>{if(!finePointer.matches||reduceMotio
 let changingTheme=false;$('theme-toggle').onclick=async e=>{if(changingTheme)return;changingTheme=true;const apply=()=>{document.body.classList.toggle('light');const light=document.body.classList.contains('light');$('theme-toggle').textContent=light?'☾':'☼';$('theme-toggle').setAttribute('aria-label',light?'切换深色主题':'切换浅色主题');if(view==='flex')renderFlex();};try{if(document.startViewTransition&&!reduceMotion.matches){const rect=$('theme-toggle').getBoundingClientRect(),x=e.clientX||rect.left+rect.width/2,y=e.clientY||rect.top+rect.height/2,r=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));const transition=document.startViewTransition(apply);await transition.ready;await document.documentElement.animate({clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${r}px at ${x}px ${y}px)`]},{duration:520,easing:'cubic-bezier(.2,.7,.2,1)',pseudoElement:'::view-transition-new(root)'}).finished;}else apply();}finally{changingTheme=false;}};
 const resize=new ResizeObserver(()=>{Object.values(charts).forEach(c=>{if(c.getDom().getClientRects().length)c.resize();});moveNavPill();});resize.observe(document.querySelector('main'));
 buildFares();renderPairs();pickCell(1,1);showView(location.hash.slice(1)||'landing',false);
+
+let scenePaused=false;
+function syncSceneMotion(){const paused=scenePaused||reduceMotion.matches;document.body.classList.toggle('motion-paused',paused);$('motion-toggle').textContent=reduceMotion.matches?'已减少动态效果':paused?'▶ 播放航线动效':'Ⅱ 暂停航线动效';$('motion-toggle').setAttribute('aria-pressed',String(paused));$('motion-toggle').disabled=reduceMotion.matches;}
+$('motion-toggle').onclick=()=>{scenePaused=!scenePaused;syncSceneMotion();};
+reduceMotion.addEventListener('change',syncSceneMotion);syncSceneMotion();
+
+window.addEventListener('flight-language-change',()=>{if(view==='search')renderState();if(view==='details')renderDetails();if(view==='flex')renderFlex();requestAnimationFrame(()=>{window.flightLocale.apply();moveNavPill();Object.values(charts).forEach(c=>{if(c.getDom().getClientRects().length)c.resize();});});});
+window.flightLocale.apply();
