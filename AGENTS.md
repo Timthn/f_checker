@@ -3,7 +3,7 @@
 ## Scope and authority
 Only work in `C:/Users/Tim Ngan/Desktop/projects/f_checker` and only commit/push to `https://github.com/Timthn/f_checker` (SSH equivalent permitted). Before any Git write, verify root, branch and origin. Never change other repositories. Deletes must resolve inside this project; preserve user work. No core OS/global dependency changes, purchases, ticket issuance or deployment.
 
-Current goal: actual application development (2026-10-12). User authorized resumption and extended the cumulative round limit to10 on2026-10-12. Completed count8 is preserved. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
+Current goal: actual application development (2026-10-12). User authorized resumption and extended the cumulative round limit to10 on2026-10-12. Completed count10 is preserved. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
@@ -61,7 +61,10 @@ This file applies within this repository only. No existing AGENTS.md/CLAUDE.md w
 ## Actual development index
 - Plan: docs/plans/2026-10-12-development.md
 - Runtime: bundled Node24.19.0; dependencies installed only locally with lockfile after engine verification.
-- Goal-wide completed implementation/verification/review rounds:8. User authorized resumption with cumulative limit10; Goal not complete.
+- Goal-wide completed implementation/verification/review rounds:10. User authorized resumption with cumulative limit10; Goal not complete.
+- Round10 local critical-flow verification passed; full Goal incomplete. No automatic round11. Acceptance checkpoint: docs/errors/2026-10-12-round10-acceptance-gates.md. No new live provider calls.
+- Local recovery/account guard: src/instrumentation.ts, src/connectors/apify-account.ts, src/server/provider-allowance.ts; docs/decisions/0003-local-workflow-and-free-account.md
+- Real Auth/API tests: tests/auth.integration.ts, vitest.auth.config.ts; actual SDK fixture-IO restart harness: tools/workflow-recovery.cjs. Qualify original verifier failure and preserved-record offline correction separately.
 - Current architecture and pending gates: docs/architecture/application-status.md
 - Stop checkpoint and remaining acceptance: docs/errors/2026-10-12-goal-round-limit.md
 - Local commands/configuration: README.md, package.json, package-lock.json, next.config.ts, .env.example, .env.migration.example

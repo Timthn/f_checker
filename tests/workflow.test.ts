@@ -8,6 +8,7 @@ vi.mock('../src/connectors/apify-adapter',()=>({parseBooking:f.parse}));
 vi.mock('../src/connectors/apify-chain',()=>({planSearch:f.planSearch,planReturn:f.planReturn}));
 vi.mock('../src/server/provider-chain',()=>({completeStage:f.stage,privateContinuation:f.private,purgeReferences:f.purge,purgeExpiredReferences:f.purge}));
 vi.mock('../src/server/provider-reads',()=>({reserveRead:vi.fn()}));
+vi.mock('../src/server/provider-allowance',()=>({checkFreeAllowance:vi.fn()}));
 import { flightSearch } from '../src/workflows/flight-search';
 const job={job_id:'qa-job',owner_id:'qa-owner',workflow_id:'qa-workflow',status:'running',lease_version:'1',cancelled_at:null,query:{origin:'HKG',destination:'NRT'},call_id:'qa-call',run_id:'QARun',dataset_id:'QADataset',provider_phase:'running'};
 beforeEach(()=>{vi.resetAllMocks();process.env.LIVE_PROVIDER_ENABLED='true';f.sql.mockResolvedValue({rows:[job]});f.claim.mockResolvedValue(job);f.reserve.mockResolvedValue({phase:'reserved',call_id:'qa-call',ceiling_microusd:'30000'});f.dispatch.mockResolvedValue(true);f.start.mockResolvedValue({runId:'QARun',datasetId:'QADataset'});f.status.mockResolvedValue({status:'RUNNING'});f.planSearch.mockReturnValue({offers:[],next:null,coverage:{returned:0,selected:0}});});

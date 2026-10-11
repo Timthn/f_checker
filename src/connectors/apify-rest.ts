@@ -7,3 +7,4 @@ export async function startRun(input:unknown,ceilingMicrousd:number){
 }
 export async function runStatus(id:string){if(!/^[A-Za-z0-9]+$/.test(id))throw Error('INVALID_RUN');const r=await request(`/actor-runs/${id}`);return {status:r.data?.status as string,usage:r.data?.usageTotalUsd as number|undefined};}
 export async function dataset(id:string){if(!/^[A-Za-z0-9]+$/.test(id))throw Error('INVALID_DATASET');const r=await request(`/datasets/${id}/items?limit=500&clean=true`);if(!Array.isArray(r))throw Error('PROVIDER_SCHEMA_CHANGED');return r;}
+export async function accountData(kind:'user'|'limits'):Promise<unknown>{return request(kind==='user'?'/users/me':'/users/me/limits');}
