@@ -11,7 +11,7 @@
 | SerpApi account/key | 选择该备选时 | `SERPAPI_API_KEY`；仅后端，query 参数日志脱敏 |
 | Kiwi MCP | 决定验证时 | 官方 URL https://mcp.kiwi.com；文档没列必需 Key；认证/额度待连接核对 |
 | Open-source scraper | 选择自维护时 | 仓库本身不要求该服务 Key；可能需代理凭证，不能假定永远免 Key |
-| SQLite | 本地建议方案 | 不需账户/Key；数据库文件不能进 Git |
+| Supabase PostgreSQL/Auth | 更新后的推荐数据库 | 项目 URL/publishable key、受限 SQL 连接与独立 migration 连接；见 ../development-readiness.md |
 | Figma / cloud DB / deploy | 日后确实选用时 | 当前非必需；不预先申请所有账号 |
 | OpenAI API | 当前四功能 | 不需要；排序/Signal/会合用确定性算法 |
 
@@ -42,4 +42,4 @@ History：已存快照读取不调用 provider；自动采样任务每次都可�
 
 SearchApi月套餐成本仍USD40（若适用并≤10k）；SerpApi此规模超过1k，应核对适用套餐，公开5k为USD75；Apify示意假设2000 search/return/booking + 64 calendar → USD10.512，locations/platform/tax等未计，不是最终报价。Connector方法和费用单位尚未实测，不可把所有 providers 当等价一次收费。
 
-本地方案软件托管费USD0（不含电脑、电、网络）；生产 hosting/database/logging 未选，不给出虚构价格。建议先利用单一服务试用验证，不现在同时订阅。
+本地方案软件托管费USD0（不含电脑、电、网络）；免费个人演示候选见 [free-deployment](../architecture/free-deployment.md)，数据库和具体配置见 [readiness](../development-readiness.md)。免费托管不等于免费无限数据调用或全天采样。建议先利用单一服务试用验证，不现在同时订阅。

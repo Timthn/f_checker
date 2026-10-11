@@ -1,6 +1,6 @@
 # Technology recommendation
 
-状态：建议而非用户最终批准；未安装版本/依赖。日期 2026-10-11。
+状态：建议而非用户最终批准；未安装版本/依赖。更新日期 2026-10-12。
 
 | Option | UI / split view | Connector/analysis | Complexity / cost | Conclusion |
 |---|---|---|---|---|
@@ -8,9 +8,9 @@
 | Streamlit + Python service | 很快出数据工具；可用 columns；复杂状态/交互需配合 rerun 模型 | 单语言，快速分析 | 初期低，精细 UI 与取消/双侧状态控制后续较费功夫 | 快速个人 spike 的替代，不默认长期主 UI |
 | Next.js full-stack | 单 TypeScript 运行时；UI 同样灵活 | TS adapter 可实现； Python 爬虫要另起进程/服务 | 比双栈少边界，但长任务托管有运行限制 | 若选纯 HTTP provider 且不要 Python，可减少维护 |
 
-建议 stack：Next.js App Router + TypeScript + 可访问组件与 CSS tokens；FastAPI + Pydantic；数据库访问 SQLAlchemy/Alembic；初期 SQLite 单机单 worker；HTTP provider adapter。不选择 Redis/Celery、Supabase、Figma账号或特定部署平台作为必需项。
+建议 stack：Next.js App Router + TypeScript + 可访问组件与 CSS tokens；FastAPI + Pydantic；数据库访问 SQLAlchemy，Supabase PostgreSQL/Auth；Supabase CLI 管理唯一 SQL migration history，不并用 Alembic。HTTP provider adapter；初期不需要 Redis/Celery。部署候选见 [免费方案](free-deployment.md)。
 
-SQLite 适合当前个人工具低写并发，持久 job 表配单独 Python worker。以后多实例/多用户或并发写受限时迁 PostgreSQL；此前不需要 DB 云账户/Key。该选择是架构判断，不是性能实测结论。
+用户允许使用 Supabase 后，推荐直接以 PostgreSQL 为开发与托管主数据库，统一 RLS、任务锁和预算事务，避免 SQLite 迁移差异。Supabase 不托管 FastAPI，也不提供机票数据。免费演示 worker 可与 API 同服务运行，持续采样需另评估常驻部署。该选择是建议，非性能实测或已批准订阅。
 
 隔离：backend/.venv，frontend 项目本地 node_modules；独立 lockfiles，固定受支持 runtime，实施时核对 Node/Python与库兼容矩阵再锁版本。不使用 global pip/npm；不复用其他 repo 的 env。当前不把机器现有 Python/Node 当已完成项目环境验证。
 

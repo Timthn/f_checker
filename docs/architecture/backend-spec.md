@@ -18,7 +18,11 @@ Proposed Python/FastAPI; this is a planned API, not provider API and not impleme
 | POST `/api/v1/date-prices` | neighboring-date exploration request → job_id | 202 |
 | GET `/api/v1/health` | local app readiness; credentials not required for process healthy | 200 |
 
-Never return provider replayable token to UI. Error envelope `{error:{code,message,trace_id,retryable},details:[...]}`; no raw provider body. 409 if estimate exceeds allowed budget/unsupported requirement, 422 if invalid date/input. Include contract_version and server_time. Idempotency-Key optional stable UUID; same key with different input rejected.
+Never return provider replayable token to UI. Error envelope `{error:{code,params,field,retryable,request_id},meta:{locale,contract_version,server_time}}` following localization-spec.md; no raw provider body. 409 if estimate exceeds allowed budget/unsupported requirement, 422 if invalid date/input. Include contract_version and server_time. Idempotency-Key optional stable UUID; same key with different input rejected.
+
+## Storage and authentication
+
+Supabase Auth verified JWT, private flight schema and restricted PostgreSQL roles; owner isolation applies from the first application version. See data-design.md for RLS, immutable snapshots, budget reservations and durable dispatching recovery. Supabase CLI owns the only migration history. Free hosting changes availability, not these guarantees; see free-deployment.md.
 
 ## Adapter interface
 Capabilities: one_way/round_trip/business, carry_on_filter/checked_filter/baggage_details/segment_baggage/weights, calendar_pairs, insights_scope, booking_links. Each value has documented / live_verified / unsupported / unknown evidence. Query execution only on configured provider; no silent paid fallback.

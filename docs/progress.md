@@ -55,3 +55,7 @@ Repair-validation rounds: 2。第一轮修正生成结果文件前的链接核�
 新增中文/EN全局切换与本地记忆，覆盖原型导航、字段、结果、状态、图表和辅助标签；保留当前筛选/报价，不触发请求。内页减少slogan，改为功能标题。前后端语言规范已索引到AGENTS：稳定错误码、locale优先级、金额/时间/ID不随语言变化。后端尚未实现，不以规格冒充真实双语API。
 
 核验：locale-layout新增39项通过，原cockpit36项回归通过；零运行时错误。已检查桌面英文查询/详情与手机日期热力图截图。所有修改限制在授权项目；Git提交及推送以本次最终核对结果为准。
+
+## 2026-10-12 — data architecture and free hosting review
+
+Completed reviewable Supabase/Postgres data model, RLS/role boundaries, immutable history, budget/worker recovery, key checklist and personal free-hosting comparison. Reconciled canonical architecture and bilingual error envelope. Independent review found dispatch crash ambiguity; durable pre-I/O dispatching and uncertain recovery now specified. Supabase connector returned zero visible projects; no cloud mutation or provider call performed. Frontend remains the previously verified 75-check prototype, not a complete application. No application dependencies installed or deployment performed. Next gate: choose/authorize a dedicated Supabase project and locally configure the chosen provider trial key for a bounded spike.

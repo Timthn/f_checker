@@ -1,11 +1,11 @@
-# System design v0.1
+# System design v0.2
 
-建议架构；应用尚未实现。目标是单用户本地可运行，同时不阻碍日后托管。
+建议架构；应用尚未实现。建议使用 Supabase PostgreSQL/Auth；支持本地与免费演示部署，应用尚未实现。详细模型见 [data-design.md](data-design.md)，免费托管边界见 [free-deployment.md](free-deployment.md)。
 
 ```mermaid
 flowchart LR
   UI[Next.js Dashboard] --> API[FastAPI API]
-  API --> DB[(SQLite jobs / offers / snapshots)]
+  API --> DB[(Supabase PostgreSQL jobs / offers / snapshots)]
   Worker[Single Python worker] --> DB
   Worker --> Adapter[Provider adapter]
   Adapter --> Source[Chosen HTTP API or Apify Actor]
@@ -21,7 +21,7 @@ flowchart LR
 - Adapter：能力表、search/calendar/resolve-return/booking/insights；不负责产品排序。
 - Rules：纯业务逻辑、money/时区/费用范围处理、comparable key、确定性推荐。
 
-不建议用 FastAPI in-process BackgroundTasks 作为唯一可靠长任务队列。初期 single worker + DB leases：每次 claim 原子事务；lease_expiry 后可重领；阶段结果落盘；取消在下次子请求前检查。重启从 checkpoint 恢复，不重复收费请求。任务表记录已 dispatched 的 request ledger，无法判断是否计费的超时记 uncertain，不盲目重发。
+不建议用 FastAPI in-process BackgroundTasks 作为唯一可靠长任务队列。初期 single worker + DB leases：每次 claim 原子事务；lease_expiry 后可重领；阶段结果落盘；取消在下次子请求前检查。重启复用成功 checkpoint；上游 exactly-once 不可保证。发送前持久化 dispatching 状态并核对 lease/取消/预算；崩溃窗口中的不确定请求不自动重发。任务表记录已 dispatched 的 request ledger，无法判断是否计费的超时记 uncertain，不盲目重发。
 
 ## Persistence
 - searches：输入 JSON、fingerprint、provider、created_at、scope。
@@ -33,7 +33,7 @@ flowchart LR
 - provider_calls：redacted request fingerprint、cost units、status、attempt、checkpoint；不存秘密。
 - provider_references：短期 token，服务端限制访问，日志隐藏；原始响应先脱敏再保存。
 
-初期 cache 用 DB expiry 与 fingerprint，无 Redis。缓存 key 含完整输入、provider、schema_version、locale、币种、旅客和行李，避免跨条件串结果。历史快照记录真实 observed_at，缓存重复读取不创建伪新增观测。
+初期 cache 用 DB expiry 与 fingerprint，无 Redis。缓存 key 含完整输入、provider、schema_version、provider market/language、币种、旅客和行李，避免跨条件串结果。UI locale 不进入 canonical fare cache，切换语言不触发付费请求。历史快照记录真实 observed_at，缓存重复读取不创建伪新增观测。
 
 ## Execution flows
 固定：validate → reserve quota → search candidates → complete roundtrip → baggage/booking enrichment → confirmed ranking → result. 只核验 10 个候选时结果声明核验范围，不能省略未知低价候选却称绝对 top ten。
@@ -47,7 +47,7 @@ flowchart LR
 ## Reliability and boundaries
 Timeout 30 秒初始建议，job 180 秒可调整。HTTP 429 尊重 Retry-After；transient 5xx 最多 2 次受预算限制重试；401/403、参数错、schema 错不盲重试。未知收费结果不自动重试。日志 trace_id 不含 token/旅客姓名；本工具不收集购票身份资料。
 
-本地 bind 127.0.0.1，单 origin。以后部署必须增加认证、授权、服务端配额、HTTPS 和受控 CORS；当前不把单用户无认证 API 对外发布。不需要 LLM、支付系统或航空出票 API。
+本地 bind 127.0.0.1，单 origin。应用从首版接入 Supabase Auth、owner RLS 与服务端配额；部署使用 HTTPS 和受控 CORS。API 以受限 SQL 角色访问私有 schema，不持有 migration admin 凭证。不需要 LLM、支付系统或航空出票 API。
 
 ## Structure (future code, not scaffolded)
 ```text
@@ -57,9 +57,10 @@ backend/app/api/              transport
 backend/app/domain/           money / baggage / ranking / history
 backend/app/providers/        adapters
 backend/app/jobs/             orchestration / worker
-backend/app/storage/          repositories / migrations
+backend/app/storage/          repositories
+supabase/migrations/          sole SQL migration history
 backend/tests/                unit / integration / provider fixtures
 docs/                         design, contracts, ADR, QA
 ```
 
-Deployment choice deferred. Use health readiness that distinguishes app start from provider credentials/availability. Local SQLite files, .env and raw responses excluded from Git. Dependency compatibility verified in clean environments only during implementation.
+Deployment recommendation: Vercel Hobby frontend + Render Free API/co-located supervised worker + Supabase Free for a personal demo. Sleep means no continuous monitoring guarantee. A persistent separate-worker profile remains the later option. See free-deployment.md. Health readiness distinguishes process start from database/provider availability. Secrets/raw responses excluded from Git. Dependency compatibility is verified only during implementation.

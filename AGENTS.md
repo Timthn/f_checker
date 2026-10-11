@@ -31,11 +31,15 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 - Accounts/budgets: [docs/connectors/credentials-budget.md](docs/connectors/credentials-budget.md)
 - Review: [docs/reviews/product-review.md](docs/reviews/product-review.md)
 - Decisions: [docs/decisions/0001-preflight.md](docs/decisions/0001-preflight.md)
+- Data model and RLS: [docs/architecture/data-design.md](docs/architecture/data-design.md)
+- Architecture review: [docs/reviews/architecture-review-2026-10-12.md](docs/reviews/architecture-review-2026-10-12.md)
+- Development keys/readiness: [docs/development-readiness.md](docs/development-readiness.md)
+- Free deployment: [docs/architecture/free-deployment.md](docs/architecture/free-deployment.md)
 - Progress: [docs/progress.md](docs/progress.md)
 - Verification: [docs/qa/preflight-verification.md](docs/qa/preflight-verification.md)
 
 ## Proposed engineering conventions
-Recommendation, not installed stack: Next.js/TypeScript frontend, FastAPI/Python backend, SQLite locally. Hosted database and deploy undecided. Provider choice conditional on capability spike; favor direct SearchApi evaluation, Apify alternative, not both paid by default.
+Recommendation, not installed stack: Next.js/TypeScript frontend, FastAPI/Python backend, Supabase PostgreSQL/Auth. Supabase CLI owns one migration history. Free personal-demo hosting is proposed, not deployed; sleeping services do not guarantee continuous sampling. Provider choice conditional on capability spike; favor direct SearchApi evaluation, Apify alternative, not both paid by default.
 Paths kebab-case; Python identifiers snake_case; TS variables camelCase; JSON internal fields snake_case; API `/api/v1/*`; money integer minor units and ISO currency; timestamps RFC3339 UTC plus IANA zone. Offer IDs never rely on expiring booking tokens.
 
 Current runnable artifact is standalone HTML with local CSS/JS and vendored ECharts, not application code. For this UI task follow the user’s direct design guidance without a Superpowers workflow. Public frontend-design guidance is project-scoped under `.agents/skills/frontend-design`; do not install globally. Project install/start/unit/integration commands will be recorded only when implemented and verified; do not present proposed commands as tested commands.
