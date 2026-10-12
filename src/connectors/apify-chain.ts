@@ -5,7 +5,7 @@ import { parseSearch } from './apify-adapter';
 import { stableId } from '../domain/rules';
 import type { Offer, Search, Segment } from '../domain/contracts';
 
-export type ChainNext = {mode:'return'|'booking';token:string;selected:Segment[]};
+export type ChainNext = {mode:'return'|'booking';token:string;selected:Segment[];outbound_duration_minutes?:number|null};
 export type ChainPlan = {offers:Offer[];next:ChainNext|null;coverage:{returned:number;selected:number}};
 const envelope=z.object({mode:z.enum(['search','return']),trip_type:z.string(),itineraries:z.array(z.object({
   trip_type:z.string(),departure_token:z.unknown().optional(),booking_token:z.unknown().optional(),
@@ -29,26 +29,32 @@ function compatible(ss:Segment[],q:Search,back=false){
  return ss.length>0&&ss.every(s=>s.leg_index===0&&s.cabin===q.cabin)&&ss[0].from===from&&ss.at(-1)!.to===to&&ss[0].departure_local.slice(0,10)===day&&ss.every((s,i)=>i===0||ss[i-1].to===s.from);
 }
 function opaque(value:unknown):value is string{return typeof value==='string'&&value.trim().length>0&&value.length<=100000&&!value.includes('[REDACTED]')&&!/[\r\n]/.test(value);}
-function choose(offers:Offer[],d:z.infer<typeof envelope>,q:Search,mode:'return'|'booking',back=false){
+function candidatesFor(offers:Offer[],q:Search,back=false){
  const candidates=offers.map((offer,index)=>({offer,index})).filter(({offer})=>offer.money.currency===q.currency&&compatible(offer.segments,q,back));
  if(!candidates.length&&offers.length)throw Error('CHAIN_CONTEXT_MISMATCH');
+ return candidates;
+}
+function choose(offers:Offer[],d:z.infer<typeof envelope>,q:Search){
+ const candidates=candidatesFor(offers,q);
  if(!offers.length)return null;
- const tokenKey=mode==='return'?'departure_token':'booking_token';
- const usable=candidates.filter(({index})=>opaque(d.itineraries[index][tokenKey])).sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.index-b.index);
+ const usable=candidates.filter(({index})=>opaque(d.itineraries[index].departure_token)).sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.index-b.index);
  if(!usable.length)throw Error('CHAIN_REFERENCE_UNAVAILABLE');
- const chosen=usable[0];return {...chosen,token:d.itineraries[chosen.index][tokenKey] as string};
+ const chosen=usable[0];return {...chosen,token:d.itineraries[chosen.index].departure_token as string};
 }
 export function planSearch(raw:unknown,query:Search):ChainPlan{
- const {d,offers}=read(raw,'search',query),mode=query.return_date?'return':'booking';
- const picked=choose(offers,d,query,mode);
- return {offers,next:picked?{mode,token:picked.token,selected:picked.offer.segments}:null,coverage:{returned:offers.length,selected:picked?1:0}};
+ const {d,offers}=read(raw,'search',query);
+ const compatibleOffers=candidatesFor(offers,query).map(c=>c.offer);
+ if(!query.return_date)return {offers:compatibleOffers,next:null,coverage:{returned:offers.length,selected:compatibleOffers.length}};
+ const picked=choose(offers,d,query);
+ return {offers:compatibleOffers,next:picked?{mode:'return',token:picked.token,selected:picked.offer.segments,outbound_duration_minutes:picked.offer.duration_minutes}:null,coverage:{returned:offers.length,selected:picked?1:0}};
 }
-export function planReturn(raw:unknown,query:Search,selected:Segment[]):ChainPlan{
+export function planReturn(raw:unknown,query:Search,selected:Segment[],outboundDuration:number|null=null):ChainPlan{
  if(!query.return_date||!compatible(selected,query))throw Error('CHAIN_CONTEXT_MISMATCH');
- const {d,offers}=read(raw,'return',query),picked=choose(offers,d,query,'booking',true);
+ const {offers}=read(raw,'return',query);
  const combined=(back:Segment[])=>[...selected.map(s=>({...s,leg_index:0})),...back.map(s=>({...s,leg_index:1}))];
- // A return-mode number is not a complete booking quote and is never added to
- // outbound prices. The selected context is validated by parseBooking next.
- const paired=offers.map(o=>{const segments=combined(o.segments);return {...o,segments,complete:false,itinerary_id:stableId(segments.map(s=>[s.from,s.to,s.departure_local,s.arrival_local,s.flight]))};});
- return {offers:paired,next:picked?{mode:'booking',token:picked.token,selected:combined(picked.offer.segments)}:null,coverage:{returned:offers.length,selected:picked?1:0}};
+ // Complete describes the two-leg structure only. Return prices are neither added
+ // to outbound prices nor promoted to verified party totals or baggage rights.
+ const outboundElapsed=typeof outboundDuration==='number'&&Number.isSafeInteger(outboundDuration)&&outboundDuration>0?outboundDuration:null;
+ const paired=candidatesFor(offers,query,true).map(({offer:o})=>{const segments=combined(o.segments),backElapsed=typeof o.duration_minutes==='number'&&Number.isSafeInteger(o.duration_minutes)&&o.duration_minutes>0?o.duration_minutes:null;return {...o,segments,duration_minutes:outboundElapsed!==null&&backElapsed!==null&&Number.isSafeInteger(outboundElapsed+backElapsed)?outboundElapsed+backElapsed:null,complete:true,price_complete:false,quoted_adults:null,baggage:[],itinerary_id:stableId(segments.map(s=>[s.from,s.to,s.departure_local,s.arrival_local,s.flight]))};});
+ return {offers:paired,next:null,coverage:{returned:offers.length,selected:paired.length}};
 }

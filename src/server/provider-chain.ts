@@ -7,7 +7,7 @@ import {projectReportedCost} from './reported-cost';
 import type { Search,Offer,Segment } from '../domain/contracts';
 
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
-export type PrivateNext={mode:'return'|'booking';token:string;selected:Segment[]};
+export type PrivateNext={mode:'return'|'booking';token:string;selected:Segment[];outbound_duration_minutes?:number|null};
 export type ChainCoverage={returned:number;selected:number};
 const key='next-stage';
 

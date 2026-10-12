@@ -10,6 +10,13 @@ afterEach(() => vi.unstubAllGlobals());
 const reply = (value: unknown, headers?: HeadersInit) => new Response(JSON.stringify(value), { headers });
 const mockReply = (value: unknown) => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(value)));
 
+it('rejects booking before credentials or any provider HTTP are accessed', async () => {
+  vi.stubGlobal('process', {env:{}});
+  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+  await expect(startRun({mode:'booking',tokens:['OFFLINE_PRIVATE_REFERENCE']},20000)).rejects.toThrow(/^BOOKING_ENDPOINT_UNSUPPORTED$/);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
 it('rejects unrecognized run statuses without leaking the upstream payload', async () => {
   mockReply({ data: { status: 'PRIVATE_TOKEN', usageTotalUsd: 0.01 } });
   await expect(runStatus('OfflineRun')).rejects.toThrow(/^PROVIDER_SCHEMA_CHANGED$/);

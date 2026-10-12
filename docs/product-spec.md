@@ -117,3 +117,9 @@ job 状态 queued/running/partial/succeeded/failed/cancelled；UI 区分 loading
 ## 10. 文档阶段完成标准
 
 规格、独立评审和修订记录、primary-source 数据源评估、技术方案比较、UIUX 设计与可审阅原型、系统与前后端规格、内部数据契约、凭证/预算表、AGENTS.md 模板及 progress book 齐全。所有实际请求未做的能力显式待验证。无需应用测试、Git push 或部署作为本阶段成功条件。
+
+## Direct user amendment — no booking connector in the application
+
+2026-10-12 user explicitly states that the booking API is not needed. Production query scope is amended to flight discovery and analysis: one-way search only; round-trip search followed by return lookup. Do not invoke the provider booking endpoint or build ticket purchase/issuance flows. Existing booking samples/observations remain historical evidence; removing the live endpoint is not permission to fabricate party-inclusive fare, baggage or fare-family proof. Keep unverified returned amounts clearly marked; complete selected journey reconstruction is separate from price/rights confirmation.
+
+Update chain contracts, operation keys/admission reservation math, workflows, tests, UI coverage and documentation together. Preserve existing reservations and never refund actual ambiguous/dispatched calls based on this scope change. The currently running pre-amendment SDK QA clone uses synthetic supplier IO only; its recovery result, if obtained, is historical orchestration evidence and must not substitute for the amended search/return workflow acceptance. Complete its scoped cleanup before starting another DB mutation suite.

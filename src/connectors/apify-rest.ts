@@ -18,6 +18,7 @@ async function request(path:string,options:RequestInit={},maxBytes=metadataBytes
  finally{reader.releaseLock();}
 }
 export async function startRun(input:unknown,ceilingMicrousd:number){
+ if(input!==null&&typeof input==='object'&&'mode' in input&&input.mode==='booking')throw Error('BOOKING_ENDPOINT_UNSUPPORTED');
  if(!Number.isSafeInteger(ceilingMicrousd)||ceilingMicrousd<0)throw Error('INVALID_PROVIDER_CEILING');
  const result=await request(`/acts/scrapercompany~google-flights-scraper/runs?build=0.0.2&timeout=120&memory=256&maxTotalChargeUsd=${ceilingMicrousd/1000000}`,{method:'POST',body:JSON.stringify(input)});
  if(typeof result?.data?.id!=='string'||! /^[A-Za-z0-9]{1,64}$/.test(result.data.id)||typeof result?.data?.defaultDatasetId!=='string'||! /^[A-Za-z0-9]{1,64}$/.test(result.data.defaultDatasetId))throw Error('DISPATCH_UNCERTAIN');return {runId:result.data.id as string,datasetId:result.data.defaultDatasetId as string};

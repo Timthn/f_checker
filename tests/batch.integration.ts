@@ -39,7 +39,7 @@ afterAll(async()=>{try{await cleanupBatches();await admin.query('delete from fli
 
 it('whole admission is atomic, owner-scoped and idempotent before any provider IO',async()=>{
  const key=randomUUID(),batch=await admitBatch(owner,'meeting',meeting,key),again=await admitBatch(owner,'meeting',meeting,key);
- expect(again.batch_id).toBe(batch.batch_id);expect(again.reused).toBe(true);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+ expect(again.batch_id).toBe(batch.batch_id);expect(again.reused).toBe(true);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
  expect((await getBatch(owner,batch.batch_id))?.items).toHaveLength(2);expect(await getBatch(other,batch.batch_id)).toBeNull();
  await expect(transaction('api',owner,c=>c.query('select * from flight.batch_slots'))).rejects.toMatchObject({code:'42501'});
  await expect(admitBatch(owner,'meeting',{...meeting,max_minutes:30},key)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
@@ -50,7 +50,7 @@ it('reads only this batch members through the restricted API role',async()=>{
  const result=await readBatchResults(owner,batch.batch_id);expect(result).toMatchObject({kind:'flexible',source:'batch_members_only',paid_requests:0,coverage:{admitted:2,searched:0,verified_cells:0},result_coverage:{omitted_offers:0}});
  expect(result?.kind==='flexible'?result.cells.map(c=>c.query_status):null).toEqual(['queued','queued']);
  expect(await readBatchResults(other,batch.batch_id)).toBeNull();expect(await readBatchResults(owner,randomUUID())).toBeNull();
- expect(BigInt(await lifetime())-BigInt(baseline)).toBe(180000n);
+ expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
 });
 it('parent startup replay, execution fence, child capacity and terminal refund are durable',async()=>{
  const batch=await admitBatch(owner,'flexible',flexible,randomUUID()),launcher=vi.fn(async()=>`qa-parent-${batch.batch_id}`);
@@ -77,7 +77,7 @@ it('replaces only an authoritatively stopped parent while preserving admitted ch
  const first=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-first-${batch.batch_id}`);await prepareBatch(batch.batch_id,first!);
  const second=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-second-${batch.batch_id}`,async()=>true);expect(second).not.toBe(first);
  expect((await prepareBatch(batch.batch_id,first!)).done).toBe(true);expect((await prepareBatch(batch.batch_id,second!)).children).toEqual(before);
- expect((await getBatch(owner,batch.batch_id))!.items.map((i:{child_job_id:string})=>i.child_job_id)).toEqual(before);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+ expect((await getBatch(owner,batch.batch_id))!.items.map((i:{child_job_id:string})=>i.child_job_id)).toEqual(before);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
 });
 it('restarts a stopped child only before any provider dispatch',async()=>{
  const batch=await admitBatch(owner,'meeting',meeting,randomUUID()),item=(await getBatch(owner,batch.batch_id))!.items[0];
@@ -87,7 +87,7 @@ it('restarts a stopped child only before any provider dispatch',async()=>{
  expect(await recoverStoppedChild(owner,item.child_job_id,'qa-stopped-child')).toBe(true);
  await failJob(job!,'QA_STALE_CALLBACK',false);expect((await getBatch(owner,batch.batch_id))!.items[0].status).toBe('queued');
  const restarted=await claimJob(item.child_job_id,'qa-restarted-child');expect(restarted?.lease_version).not.toBe(job?.lease_version);
- const adopted=await reserveCall(restarted!,'search');expect(adopted.call_id).toBe(call.call_id);expect(adopted.lease_version).toBe(restarted?.lease_version);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+ const adopted=await reserveCall(restarted!,'search');expect(adopted.call_id).toBe(call.call_id);expect(adopted.lease_version).toBe(restarted?.lease_version);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
  // Fake ambiguous state only: no HTTP. Restore reserved after proving conservative behavior,
  // allowing the suite's no-I/O-only refund guard to clean temporary QA rows.
  await admin.query("update flight.provider_calls set phase='dispatching' where owner_id=$1 and call_id=$2",[owner,call.call_id]);
@@ -96,13 +96,13 @@ it('restarts a stopped child only before any provider dispatch',async()=>{
 });
 it('competing complete plans cannot partially overspend the shared lifetime cap',async()=>{
  const outcomes=await Promise.allSettled([admitBatch(owner,'flexible',flexible,randomUUID()),admitBatch(owner,'flexible',flexible,randomUUID())]);
- expect(outcomes.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect(outcomes.filter(r=>r.status==='rejected')).toHaveLength(1);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(180000n);
+ expect(outcomes.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect(outcomes.filter(r=>r.status==='rejected')).toHaveLength(1);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
  expect((await admin.query('select count(*)::int as n from flight.batches where owner_id=$1',[owner])).rows[0].n).toBe(1);
 });
 it('transfers a held slot once without charging budget accounts again',async()=>{
  const batch=await admitBatch(owner,'meeting',meeting,randomUUID()),items=(await getBatch(owner,batch.batch_id))!.items;
  const job=await claimJob(items[0].child_job_id);expect(job).toBeTruthy();const call=await reserveCall(job!,'search'),again=await reserveCall(job!,'search');
- expect(call.batch_prepaid).toBe(true);expect(again.call_id).toBe(call.call_id);expect(again.reused).toBe(true);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+ expect(call.batch_prepaid).toBe(true);expect(again.call_id).toBe(call.call_id);expect(again.reused).toBe(true);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
  await cancelBatch(owner,batch.batch_id);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(30000n);expect(await beginDispatch(job!,call.call_id)).toBe(false);
 });
 it('rechecks hold expiry at the actual pre-IO dispatch boundary',async()=>{

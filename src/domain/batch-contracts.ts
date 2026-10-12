@@ -10,7 +10,7 @@ export const liveMeetingSchema=meetingSchema.safeExtend({departure_scope:z.enum(
 export const liveFlexibleSchema=flexibleSchema.safeExtend({max_budget_microusd:ceiling});
 export type LiveMeeting=z.infer<typeof liveMeetingSchema>;
 export type LiveFlexible=z.infer<typeof liveFlexibleSchema>;
-export type BatchQuery={ordinal:number;query:Search;fingerprint:string;participants:('a'|'b'|'dates')[];operations:('search'|'return'|'booking')[]};
+export type BatchQuery={ordinal:number;query:Search;fingerprint:string;participants:('a'|'b'|'dates')[];operations:('search'|'return')[]};
 export type BatchPlan={version:1;kind:'meeting'|'flexible';request:LiveMeeting|LiveFlexible;queries:BatchQuery[];ceiling_microusd:number;call_count:number;coverage:{scope:string;requested_queries:number;unique_queries:number;verification_branches_per_query:1}};
 export class BatchPlanError extends Error{constructor(public code:string,public required_microusd=0,public available_microusd=0){super(code);}}
 export function planBatch(kind:BatchPlan['kind'],request:unknown,lockedAValidated=false):BatchPlan{
@@ -30,7 +30,7 @@ export function planBatch(kind:BatchPlan['kind'],request:unknown,lockedAValidate
  }
  const unique=new Map<string,BatchQuery>();
  for(const item of inputs){const fingerprint=stableId(item.query),previous=unique.get(fingerprint);if(previous){if(!previous.participants.includes(item.participant))previous.participants.push(item.participant);continue;}
-  const operations:BatchQuery['operations']=item.query.return_date?['search','return','booking']:['search','booking'];
+  const operations:BatchQuery['operations']=item.query.return_date?['search','return']:['search'];
   unique.set(fingerprint,{ordinal:unique.size,query:item.query,fingerprint,participants:[item.participant],operations});
  }
  const queries=[...unique.values()],calls=queries.reduce((n,q)=>n+q.operations.length,0),cost=calls*30000;

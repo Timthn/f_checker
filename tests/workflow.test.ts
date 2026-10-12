@@ -17,19 +17,28 @@ it('capacity waits durably; poll exhaustion becomes explicit and never launches 
 it('dataset read failure persists safe reconciliation state without replaying POST',async()=>{f.status.mockResolvedValue({status:'SUCCEEDED'});f.dataset.mockRejectedValue(Error('private upstream diagnostic must not escape'));await flightSearch('qa-job');expect(f.fail).toHaveBeenCalledWith(expect.anything(),'DATASET_RECONCILE_REQUIRED',true);expect(f.start).toHaveBeenCalledTimes(1);expect(f.complete).not.toHaveBeenCalled();});
 it('cancelled known run is reconciled by reads without publishing or new dispatch',async()=>{f.sql.mockResolvedValue({rows:[{...job,cancelled_at:'2026-10-12T00:00:00Z',status:'cancelled'}]});f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.01});await flightSearch('qa-job');expect(f.start).not.toHaveBeenCalled();expect(f.status).toHaveBeenCalledTimes(1);expect(f.complete).not.toHaveBeenCalled();expect(f.sql.mock.calls.some(([sql])=>String(sql).includes('update flight.provider_calls set phase='))).toBe(true);});
 
-it('bounded round-trip chain dispatches single private tokens and only whole booking prices',async()=>{
+it('bounded round-trip finishes with return candidates and never requests booking',async()=>{
  let phase='search',hasRun=true;
- const outbound={mode:'return' as const,token:'SYNTHETIC_OUTBOUND',selected:[]},inbound={mode:'booking' as const,token:'SYNTHETIC_BOOKING',selected:[]};
+ const outbound={mode:'return' as const,token:'SYNTHETIC_OUTBOUND',selected:[],outbound_duration_minutes:333};
+ const returned=[{money:{minor:228900,currency:'HKD'},complete:true,price_complete:false}];
  f.sql.mockImplementation(async(sql:string)=>({rows:[String(sql).includes('select j.*')?{...job,phase,query:{...job.query,return_date:'2026-11-17'},...(hasRun?{}:{call_id:null,run_id:null,dataset_id:null})}:job]}));
- f.planSearch.mockReturnValue({offers:[],next:outbound,coverage:{returned:19,selected:1}});f.planReturn.mockReturnValue({offers:[],next:inbound,coverage:{returned:6,selected:1}});
- f.stage.mockImplementation(async(_job, _call,_offers,_usage,next)=>{phase=next.mode;hasRun=false;});
- f.private.mockImplementation(async(_job,mode)=>mode==='return'?outbound:inbound);f.save.mockImplementation(async()=>{hasRun=true;});
- f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.00505});f.dataset.mockResolvedValue([{}]);f.parse.mockReturnValue([{money:{minor:228900,currency:'HKD'}}]);
+ f.planSearch.mockReturnValue({offers:[],next:outbound,coverage:{returned:19,selected:1}});f.planReturn.mockReturnValue({offers:returned,next:null,coverage:{returned:6,selected:6}});
+ f.stage.mockImplementation(async(_job,_call,_offers,_usage,next)=>{if(next){phase=next.mode;hasRun=false;}});
+ f.private.mockResolvedValue(outbound);f.save.mockImplementation(async()=>{hasRun=true;});
+ f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.00505});f.dataset.mockResolvedValue([{}]);
  await flightSearch('qa-job');
- expect(f.start).toHaveBeenCalledTimes(3);expect(f.start.mock.calls.slice(1).map(([input])=>input)).toEqual([
- {mode:'return',tokens:['SYNTHETIC_OUTBOUND'],maxConcurrency:1,maxRetries:0,includeErrors:true},
- {mode:'booking',tokens:['SYNTHETIC_BOOKING'],maxConcurrency:1,maxRetries:0,includeErrors:true}]);
- expect(f.complete).toHaveBeenCalledWith(expect.anything(),'qa-call',[{money:{minor:228900,currency:'HKD'}}],5050);expect(f.purge).toHaveBeenCalled();
+ expect(f.start).toHaveBeenCalledTimes(2);expect(f.start.mock.calls[1][0]).toEqual({mode:'return',tokens:['SYNTHETIC_OUTBOUND'],maxConcurrency:1,maxRetries:0,includeErrors:true});
+ expect(f.stage.mock.calls[1][2]).toEqual(returned);expect(f.stage.mock.calls[1][4]).toBeNull();expect(f.parse).not.toHaveBeenCalled();
+ expect(f.planReturn).toHaveBeenCalledWith({},expect.anything(),[],333);
+});
+it('legacy booking checkpoint stops before provider IO',async()=>{
+ f.sql.mockResolvedValue({rows:[{...job,phase:'booking'}]});await flightSearch('qa-job');
+ expect(f.fail).toHaveBeenCalledWith(expect.anything(),'BOOKING_ENDPOINT_UNSUPPORTED',true);expect(f.start).not.toHaveBeenCalled();expect(f.status).not.toHaveBeenCalled();expect(f.dataset).not.toHaveBeenCalled();
+});
+it('legacy booking discovered during collection retains unresolved paid call uncertainty',async()=>{
+ f.sql.mockImplementation(async(sql:string)=>({rows:[String(sql).includes('select j.*')?{...job,phase:'booking',provider_phase:'dispatching'}:job]}));
+ await flightSearch('qa-job');expect(f.fail).toHaveBeenCalledWith(expect.anything(),'BOOKING_ENDPOINT_UNSUPPORTED',true);
+ expect(f.start).toHaveBeenCalledTimes(1);expect(f.status).not.toHaveBeenCalled();expect(f.dataset).not.toHaveBeenCalled();
 });
 
 it('expired continuation never creates another provider run',async()=>{

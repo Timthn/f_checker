@@ -8,6 +8,7 @@ test('bilingual production cockpit preserves data without paid queries',async({p
  const prices=await page.locator('.fare-row strong').allTextContents();await page.getByRole('button',{name:'切换中文',exact:true}).click();await expect(page.locator('.fare-row')).toHaveCount(3);expect(await page.locator('.fare-row strong').allTextContents()).toHaveLength(prices.length);
  await page.locator('.fare-row').first().click();await expect(page.getByRole('heading',{name:'航班详情',exact:true})).toBeVisible();await page.getByRole('button',{name:'同一行程的历史观测',exact:true}).click();await expect(page.getByText('尚无可比的历史观测，缺失日期保持空缺。',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'出发日前后30天的日期价格',exact:true}).click();await page.getByText('查看数据表',{exact:true}).click();await expect(page.locator('tbody tr')).toHaveCount(3);await expect(page.locator('tbody tr').nth(1)).toContainText('—');
+ await expect(page.locator('tbody tr').nth(2)).toContainText('—');await expect(page.getByText('2026-11-11 · 来源数字价与显示价矛盾，此日期暂无可靠价格。',{exact:true})).toBeVisible();
  expect(paid).toHaveLength(0);expect(errors).toEqual([]);await page.screenshot({path:'docs/qa/screenshots/application-detail.png',fullPage:true});
 });
 test('mobile controls and reduced motion remain usable',async({page})=>{
