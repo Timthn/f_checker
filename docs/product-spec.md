@@ -42,6 +42,8 @@ unknown 单独展示“行李/费用待确认”，可跳转确认，但不混�
 
 ## 5. F2 详情、历史与 Signal
 
+2026-10-12 用户确认：首版接受供应商 `price_insights.price_history` 作为“航线价格历史 / Route price history”，与当前旅行日期价格分开展示。Provider low/typical/high 可作为注明来源和范围的参考 Signal；下文七天同条件门槛仅适用于自行计算的具体可比行程 Signal。API 历史缺失时显示不足，不补造。用户随后要求继续开发真实可比报价的持续记录和完整费用核对；两种历史来源保持独立。此确认优先于较早把自建同航班历史作为首版参考图前提的表述，不改变行李、时间、票价、预算和权限要求。实施计划：docs/plans/2026-10-12-live-batch-continuation.md。
+
 详情按 itinerary_id 打开，用户可选择具体 offer。显示航段、fare families、行李和费用原文、来源、采集时间。
 
 两种独立图表：

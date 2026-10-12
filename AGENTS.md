@@ -12,6 +12,7 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 - Four features: top-ten filtered offers, two price views with signal, split-screen rendezvous, flexible departure/return ranges.
 - Economy and business; baggage includes carry-on versus checked, not a single ambiguous yes/no flag.
 - User confirmed both same-trip observed price history and neighboring travel-date prices as separate views.
+- 2026-10-12 user accepts provider route/search history for first-release reference charts/signals, separately labeled 航线价格历史 / Route price history. User then requests continuation prioritizing live meeting/flexible batch queries, comparable quote recording and full cost reconciliation. Plan: docs/plans/2026-10-12-live-batch-continuation.md. Completed count10/budget remain; round extension pending.
 - Unknown baggage is not zero/free. Provider search-level history is not flight-specific history.
 - Never claim global cheapest, fabricated history or real validation based on demo data.
 
