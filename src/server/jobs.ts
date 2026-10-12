@@ -52,7 +52,14 @@ export async function reserveCall(job:Job,operation:string,ceiling=30000){return
   const locked=await c.query('select * from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id]);const j=locked.rows[0];
   if(!j||j.cancelled_at||j.lease_version!==job.lease_version||!validLease(j.lease_until))throw Error('LEASE_OR_CANCELLED');
   const previous=await c.query('select * from flight.provider_calls where owner_id=$1 and job_id=$2 and operation_key=$3',[job.owner_id,job.job_id,operation]);
-  if(previous.rows[0])return {...previous.rows[0],reused:true};
+  if(previous.rows[0]){
+   // A new fenced lease may adopt only an undispatched reservation. Preserve the
+   // immutable call/slot and budget; never reset a dispatching or known run.
+   if(previous.rows[0].phase==='reserved'&&previous.rows[0].run_id===null){
+    const adopted=await c.query("update flight.provider_calls set lease_version=$4 where owner_id=$1 and job_id=$2 and call_id=$3 and phase='reserved' and run_id is null returning *",[job.owner_id,job.job_id,previous.rows[0].call_id,job.lease_version]);return {...adopted.rows[0],reused:true};
+   }
+   return {...previous.rows[0],reused:true};
+  }
   if(member){
    const slot=(await c.query('select * from flight.batch_slots where owner_id=$1 and batch_id=$2 and ordinal=$3 and operation_key=$4 for update',[job.owner_id,member.batch_id,member.ordinal,operation])).rows[0];
    if(!slot||slot.state!=='held'||Number(slot.ceiling_microusd)!==ceiling)throw Error('BATCH_OPERATION_NOT_ADMITTED');

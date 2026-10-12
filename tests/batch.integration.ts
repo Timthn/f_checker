@@ -3,9 +3,10 @@ import {Client} from 'pg';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {admitBatch,cancelBatch,getBatch} from '../src/server/batches';
-import {claimJob,reserveCall,beginDispatch,createJob,cancelJob} from '../src/server/jobs';
+import {claimJob,reserveCall,beginDispatch,createJob,cancelJob,failJob} from '../src/server/jobs';
 import {recordOffer} from '../src/server/offer-recording';
 import {readBatchResults} from '../src/server/batch-results';
+import {ensureBatchWorkflow,prepareBatch,recoverStoppedChild} from '../src/server/batch-execution';
 import type {Offer} from '../src/domain/contracts';
 import {transaction,pool} from '../src/server/db';
 process.loadEnvFile('.env');process.loadEnvFile('.env.migration');
@@ -50,6 +51,48 @@ it('reads only this batch members through the restricted API role',async()=>{
  expect(result?.kind==='flexible'?result.cells.map(c=>c.query_status):null).toEqual(['queued','queued']);
  expect(await readBatchResults(other,batch.batch_id)).toBeNull();expect(await readBatchResults(owner,randomUUID())).toBeNull();
  expect(BigInt(await lifetime())-BigInt(baseline)).toBe(180000n);
+});
+it('parent startup replay, execution fence, child capacity and terminal refund are durable',async()=>{
+ const batch=await admitBatch(owner,'flexible',flexible,randomUUID()),launcher=vi.fn(async()=>`qa-parent-${batch.batch_id}`);
+ const first=await ensureBatchWorkflow(owner,batch.batch_id,launcher);expect(await ensureBatchWorkflow(owner,batch.batch_id,launcher)).toBe(first);expect(launcher).toHaveBeenCalledTimes(1);
+ expect(await ensureBatchWorkflow(owner,batch.batch_id,launcher,async()=>false)).toBe(first);expect(launcher).toHaveBeenCalledTimes(1);
+ await expect(ensureBatchWorkflow(owner,batch.batch_id,launcher,async()=>{throw Error('QA observation timeout');})).rejects.toThrow('QA observation timeout');expect(launcher).toHaveBeenCalledTimes(1);
+ expect((await prepareBatch(batch.batch_id,'qa-other-execution')).done).toBe(true);
+ const work=await prepareBatch(batch.batch_id,first!);expect(work.children).toHaveLength(2);expect(work.owner).toBe(owner);
+ await admin.query("update flight.jobs j set workflow_id='qa-child-active' from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2 and i.ordinal=0",[owner,batch.batch_id]);
+ expect((await prepareBatch(batch.batch_id,first!)).children).toHaveLength(1);
+ await admin.query("update flight.jobs j set status='failed' from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2",[owner,batch.batch_id]);
+ expect((await prepareBatch(batch.batch_id,first!)).done).toBe(true);expect((await getBatch(owner,batch.batch_id))?.status).toBe('failed');expect(await lifetime()).toBe(baseline);
+ await prepareBatch(batch.batch_id,first!);expect(await lifetime()).toBe(baseline);
+});
+it('parent start failure retries the same batch; expiry cancels children and refunds undispatched holds',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID());
+ await expect(ensureBatchWorkflow(owner,batch.batch_id,async()=>{throw Error('QA SDK failure');})).rejects.toThrow('WORKFLOW_START_RETRY');
+ const id=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-recovered-${batch.batch_id}`);
+ await admin.query("update flight.batches set expires_at=now()-interval '1 second' where owner_id=$1 and batch_id=$2",[owner,batch.batch_id]);
+ expect((await prepareBatch(batch.batch_id,id!)).done).toBe(true);const state=await getBatch(owner,batch.batch_id);expect(state?.status).toBe('uncertain');expect(state?.items.every((i:{status:string})=>i.status==='cancelled')).toBe(true);expect(await lifetime()).toBe(baseline);
+});
+it('replaces only an authoritatively stopped parent while preserving admitted children and budget',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID()),before=(await getBatch(owner,batch.batch_id))!.items.map((i:{child_job_id:string})=>i.child_job_id);
+ const first=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-first-${batch.batch_id}`);await prepareBatch(batch.batch_id,first!);
+ const second=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-second-${batch.batch_id}`,async()=>true);expect(second).not.toBe(first);
+ expect((await prepareBatch(batch.batch_id,first!)).done).toBe(true);expect((await prepareBatch(batch.batch_id,second!)).children).toEqual(before);
+ expect((await getBatch(owner,batch.batch_id))!.items.map((i:{child_job_id:string})=>i.child_job_id)).toEqual(before);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+});
+it('restarts a stopped child only before any provider dispatch',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID()),item=(await getBatch(owner,batch.batch_id))!.items[0];
+ await admin.query("update flight.jobs set workflow_id='qa-stopped-child' where owner_id=$1 and job_id=$2",[owner,item.child_job_id]);
+ const job=await claimJob(item.child_job_id,'qa-stopped-child'),call=await reserveCall(job!,'search');
+ expect(await recoverStoppedChild(owner,item.child_job_id,'qa-wrong')).toBe(false);
+ expect(await recoverStoppedChild(owner,item.child_job_id,'qa-stopped-child')).toBe(true);
+ await failJob(job!,'QA_STALE_CALLBACK',false);expect((await getBatch(owner,batch.batch_id))!.items[0].status).toBe('queued');
+ const restarted=await claimJob(item.child_job_id,'qa-restarted-child');expect(restarted?.lease_version).not.toBe(job?.lease_version);
+ const adopted=await reserveCall(restarted!,'search');expect(adopted.call_id).toBe(call.call_id);expect(adopted.lease_version).toBe(restarted?.lease_version);expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
+ // Fake ambiguous state only: no HTTP. Restore reserved after proving conservative behavior,
+ // allowing the suite's no-I/O-only refund guard to clean temporary QA rows.
+ await admin.query("update flight.provider_calls set phase='dispatching' where owner_id=$1 and call_id=$2",[owner,call.call_id]);
+ try{expect(await recoverStoppedChild(owner,item.child_job_id,'qa-restarted-child')).toBe(false);expect((await getBatch(owner,batch.batch_id))!.items[0].status).toBe('uncertain');}
+ finally{await admin.query("update flight.provider_calls set phase='reserved' where owner_id=$1 and call_id=$2 and run_id is null and reads_reserved=0",[owner,call.call_id]);}
 });
 it('competing complete plans cannot partially overspend the shared lifetime cap',async()=>{
  const outcomes=await Promise.allSettled([admitBatch(owner,'flexible',flexible,randomUUID()),admitBatch(owner,'flexible',flexible,randomUUID())]);

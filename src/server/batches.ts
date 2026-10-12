@@ -55,7 +55,7 @@ export async function cancelBatch(owner:string,id:string){return transaction('wo
  // Same ordering as prepaid reserveCall: parent before child before budget accounts.
  const {rows}=await c.query('select accounting_period from flight.batches where owner_id=$1 and batch_id=$2 for update',[owner,id]);if(!rows[0])return false;
  await c.query("update flight.batches set cancelled_at=coalesce(cancelled_at,now()),status='cancelled' where owner_id=$1 and batch_id=$2",[owner,id]);
- await c.query('update flight.jobs j set cancelled_at=coalesce(j.cancelled_at,now()) from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2',[owner,id]);
+ await c.query("update flight.jobs j set cancelled_at=coalesce(j.cancelled_at,now()),status=case when j.status in ('queued','running') then 'cancelled' else j.status end from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2",[owner,id]);
  const held=await c.query("update flight.batch_slots set state='released' where owner_id=$1 and batch_id=$2 and state='held' returning ceiling_microusd",[owner,id]);
  if(held.rows.length){const released=held.rows.reduce((n,r)=>n+Number(r.ceiling_microusd),0),accountKeys=keys(owner,rows[0].accounting_period);
   await c.query('select account_key from flight.budget_accounts where account_key=any($1::text[]) order by account_key for update',[accountKeys]);

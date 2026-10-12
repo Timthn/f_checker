@@ -41,3 +41,7 @@ Component tests cover labels/state/unknown prices. E2E fixtures cover A1–A11 a
 ## Bilingual product requirement
 
 Confirmed 2026-10-12: Chinese and English across the full stack. Follow [localization-spec.md](localization-spec.md) for locale resolution, language-neutral canonical data, error codes and translated user messages. Backend behavior is specified for future implementation; only prototype UI localization currently runs.
+
+## Live batch UI (continuation round3)
+
+LiveBatchPanel is a separate section from saved-quote analysis for meeting and flexible dates. Explicit user action is required for POST admission and same-request orchestration recovery. Default whole-batch ceilingUSD0.10/maxUSD0.50 does not bypass lower account balance. Meeting defaults arrival-window coverage; fixed-departure choice is explicit. Both source gate and one-verification-branch coverage remain visible. Read-only status/results polling stops on terminal/error; refresh never creates a new batch. Cancel reaches the persisted parent and child cancellation flags. Owner/kind-scoped recovery pointer contains frozen normalized request/key/batch ID, no Auth/provider token. Ambiguous persistence/network response retains original request; only definitive pre-admission rejection permits revision. Per-attempt rejection reset and persistent browser-storage warning prevent unsafe new-key recovery. Owner/generation checks fence stale callbacks. Catalog translates budget, error, recovery, coverage and dynamic statuses.

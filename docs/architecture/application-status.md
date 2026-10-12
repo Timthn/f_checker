@@ -30,3 +30,7 @@ Continuation cycle02 round1: current cycle1/5 after explicit user reset, histori
 ### Continuation round2/5
 
 Read-only batch results now have owner/member scope, whole admitted-date meeting aggregation, global Pareto, distinct over-gap alternatives, current locked-A expiry validation, and destination-local flexible stay validation. Files: src/domain/batch-results.ts, src/server/batch-results.ts, src/app/api/v1/batches/[id]/results/route.ts. This is not a live batch execution claim: creation/parent Workflow/UI remain pending. Results retain per-query one-verification-branch coverage and bounded omitted-offer counts. Worker-only search completion evidence projects a boolean into the safe response; API role retains no provider-call/checkpoint access. Unit114 and targeted DB1 passed; current full batch/job suites were not rerun.
+
+### Continuation round3/5
+
+Production live-batch controls and Auth create/status/cancel endpoints now connect to durable parent SDK execution and the existing prepaid child chain. This remains fail-closed behind LIVE_PROVIDER_ENABLED=false; no actual source meeting/date-matrix success is claimed. Browser mock flows9/9 and actual DB admission/recovery tests passed; source alternatives/full fare rights/UTC evidence and final cost accounting remain pending. Parent/child recovery contract and qualification limits: docs/decisions/0006-batch-orchestration.md. SDK crash/restart evidence for this parent is still absent; single-search prior evidence is not substituted.

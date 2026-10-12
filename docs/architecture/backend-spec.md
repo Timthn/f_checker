@@ -49,3 +49,9 @@ Environment planned `.venv`, project lock, migration and startup smoke on clean 
 ## Bilingual product requirement
 
 Confirmed 2026-10-12: Chinese and English across the full stack. Follow [localization-spec.md](localization-spec.md) for locale resolution, language-neutral canonical data, error codes and translated user messages. Backend behavior is specified for future implementation; only prototype UI localization currently runs.
+
+## Batch APIs and parent execution (continuation round3)
+
+POST /api/v1/batches takes {kind,request} and UUID Idempotency-Key, authenticates and checks live enable gate, atomically admits full plan before durable SDK start. Returns safe opaque batch ID/status/reused; orchestration=start_retry_required retains admitted batch after SDK-start uncertainty. Budget rejection returns integer required/available microusd without supplier IO. GET /api/v1/batches/[id] and /results are owner-scoped read-only. POST /cancel cancels all children and refunds only untransferred holds. API roles retain no provider-call/reference/checkpoint access; bounded safe worker projections supply durable completion evidence.
+
+Parent SDK arguments contain only batch ID; durable step results only boolean. Child executions carry only job ID. Failed/cancelled parent SDK status can authorize guarded same-batch restart on explicit same-key POST; observation errors cannot. Failed/cancelled child SDK status permits same-child restart only if all provider calls remain reserved without run IDs. Recovery immediately increments job lease version to fence stale callbacks; reserveCall adopts only undispatched reservation lease, preserving call/slot/budget. Possibly dispatched children stay uncertain with reconciliation required. Detail: docs/decisions/0006-batch-orchestration.md. Real SDK crash/restart proof for new parent and provider alternative-branch selection remain pending.

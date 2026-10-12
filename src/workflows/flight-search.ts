@@ -39,7 +39,7 @@ async function launch(jobId:string){
    const {runId,datasetId}=await startRun({mode:'search',routes:[`${q.origin}-${q.destination}`],departure_date:q.departure,return_date:q.return_date,adults:q.adults,cabin_class:q.cabin,currency:q.currency,carry_on_bags:q.carry_on,checked_bags:q.checked,maxConcurrency:1,maxRetries:0},Number(call.ceiling_microusd)-10000);
    await saveRun(job,call.call_id,runId,datasetId);
    return jobId;
- }catch(e){const code=e instanceof Error&&['QUOTA_EXCEEDED','LEASE_OR_CANCELLED','MISSING_CREDENTIALS','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED','DISPATCH_UNCERTAIN'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(job,code,dispatched||code==='DISPATCH_UNCERTAIN');throw new FatalError(code);}
+ }catch(e){const code=e instanceof Error&&['QUOTA_EXCEEDED','LEASE_OR_CANCELLED','BATCH_BUDGET_PERIOD_EXPIRED','BATCH_OPERATION_NOT_ADMITTED','MISSING_CREDENTIALS','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED','DISPATCH_UNCERTAIN'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(job,code,dispatched||code==='DISPATCH_UNCERTAIN');throw new FatalError(code);}
 }
 launch.maxRetries=0;
 async function collect(jobId:string){
@@ -67,7 +67,7 @@ async function collect(jobId:string){
    dispatched=true;
    const result=await startRun({mode,tokens:[next.token],maxConcurrency:1,maxRetries:0,includeErrors:true},Number(call.ceiling_microusd)-10000);
    await saveRun(row,call.call_id,result.runId,result.datasetId);return null;
-  }catch(e){const code=!dispatched&&e instanceof Error&&['QUOTA_EXCEEDED','PROVIDER_REFERENCE_EXPIRED','LEASE_OR_CANCELLED','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(row,code,dispatched);await purgeReferences(row.owner_id,jobId);return jobId;}
+  }catch(e){const code=!dispatched&&e instanceof Error&&['QUOTA_EXCEEDED','BATCH_BUDGET_PERIOD_EXPIRED','BATCH_OPERATION_NOT_ADMITTED','PROVIDER_REFERENCE_EXPIRED','LEASE_OR_CANCELLED','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(row,code,dispatched);await purgeReferences(row.owner_id,jobId);return jobId;}
  }
  if(!row.run_id){await failJob(row,'DISPATCH_UNCERTAIN',true);return jobId;}
  if(row.reads_reserved>=24){await suspendJob(jobId,false,execution);return jobId;}
