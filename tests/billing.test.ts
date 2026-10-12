@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { dataset, runStatus, startRun, accountData } from '../src/connectors/apify-rest';
-import { runBillingEvidence, billingSummary, usdToMicrousd } from '../src/domain/billing';
+import { runBillingEvidence, billingSummary, usdToMicrousd, safeRunBillingMetadata } from '../src/domain/billing';
 
 beforeEach(() => {
   // Replace the environment surface entirely: never read developer credentials.
@@ -139,4 +139,17 @@ it('keeps reservations, estimates, reported app cost and unrelated account resid
     });
   expect(billingSummary({ reserved_microusd: 30000, account_total_microusd: 10000 }).account_unattributed_residual_microusd).toBeNull();
   expect(billingSummary({ reported_actor_microusd: 20000, measured_external_microusd: 0, account_total_microusd: 10000 }).account_unattributed_residual_microusd).toBeNull();
+});
+
+it('preserves allowlisted included run components without double charging or leaking arbitrary keys',()=>{
+ const raw={...metadata,usageTotalUsd:0.006,usage:{DATASET_READS:4,DATA_TRANSFER_EXTERNAL_GBYTES:0.25,PRIVATE_TOKEN:99},usageUsd:{DATASET_READS:0.001,PRIVATE_TOKEN:9}};
+ const safe=runBillingEvidence(raw,'2026-10-12T00:00:01Z');
+ expect(safe.reported_microusd).toBe(6000);
+ expect(safe.usage_quantities).toEqual({DATASET_READS:4,DATA_TRANSFER_EXTERNAL_GBYTES:0.25});
+ expect(safe.included_usage_components_microusd).toEqual({DATASET_READS:1000});
+ expect(JSON.stringify(safe)).not.toContain('PRIVATE');
+ expect(runBillingEvidence(safeRunBillingMetadata(raw),'2026-10-12T00:00:01Z')).toEqual(safe);
+ const changed=runBillingEvidence({...raw,usageUsd:{DATASET_READS:0.002}},'2026-10-12T00:00:11Z',safe);
+ expect(changed.classification).toBe('reported_preliminary');
+ expect(billingSummary({reported_actor_microusd:safe.reported_microusd}).reported_actor_microusd).toBe(6000);
 });

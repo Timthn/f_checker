@@ -3,6 +3,13 @@ import Decimal from 'decimal.js';
 export const runStatuses = ['READY', 'RUNNING', 'SUCCEEDED', 'FAILED', 'TIMING-OUT', 'TIMED-OUT', 'ABORTING', 'ABORTED'] as const;
 export type RunStatus = typeof runStatuses[number];
 const terminalStatuses: readonly string[] = ['SUCCEEDED', 'FAILED', 'TIMED-OUT', 'ABORTED'];
+const usageKeys = ['ACTOR_COMPUTE_UNITS','DATASET_READS','DATASET_WRITES','KEY_VALUE_STORE_READS','KEY_VALUE_STORE_WRITES','KEY_VALUE_STORE_LISTS','REQUEST_QUEUE_READS','REQUEST_QUEUE_WRITES','DATA_TRANSFER_INTERNAL_GBYTES','DATA_TRANSFER_EXTERNAL_GBYTES','PROXY_RESIDENTIAL_TRANSFER_GBYTES','PROXY_SERPS'] as const;
+function usageMap(value:unknown,usd=false):Record<string,number>|null{
+  const input=record(value);if(!input)return null;
+  const output:Record<string,number>={};
+  for(const key of usageKeys){const n=input[key];if(typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=Number.MAX_SAFE_INTEGER){const amount=usd?usdToMicrousd(n):n;if(amount!==null)output[key]=amount;}}
+  return output;
+}
 const record = (value: unknown): Record<string, unknown> | null => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const microusd = (value: unknown): number | null => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
 export function usdToMicrousd(value: unknown): number | null {
@@ -72,6 +79,9 @@ export function safeRunBillingMetadata(value: unknown) {
     status: input.status as RunStatus,
     usage: usageMicrousd === null ? undefined : usageValue as number,
     usageMicrousd,
+    // Components are already included in usageTotalUsd, never added to it again.
+    usageQuantities:usageMap(input.usageQuantities??input.usage),
+    usageComponentsMicrousd:input.usageComponentsMicrousd===undefined?usageMap(input.usageUsd,true):usageMap(input.usageComponentsMicrousd),
     finishedAt: timestamp(input.finishedAt),
     pricingInfo: pricingInfo(input.pricingInfo),
     chargedEventCounts: eventCounts(input.chargedEventCounts),
@@ -84,6 +94,8 @@ export interface RunBillingEvidence {
   observed_at: string;
   finished_at: string | null;
   reported_microusd: number | null;
+  usage_quantities:Record<string,number>|null;
+  included_usage_components_microusd:Record<string,number>|null;
   classification: 'unknown' | 'reported_preliminary' | 'settled_observation';
   pricing_info: PricingInfo | null;
   charged_event_counts: Record<string, number> | null;
@@ -97,13 +109,14 @@ export function runBillingEvidence(metadata: unknown, observedAt: string, previo
   const evidence: RunBillingEvidence = {
     run_id: run.runId, status: run.status, observed_at: observed, finished_at: run.finishedAt,
     reported_microusd: run.usageMicrousd, classification: run.usageMicrousd === null ? 'unknown' : 'reported_preliminary',
+    usage_quantities:run.usageQuantities,included_usage_components_microusd:run.usageComponentsMicrousd,
     pricing_info: run.pricingInfo, charged_event_counts: run.chargedEventCounts,
     platform_usage_billing_model: run.platformUsageBillingModel, invoice_confirmed: false,
   };
   if (previous && run.runId && previous.run_id === run.runId && terminalStatuses.includes(run.status) && previous.status === run.status && run.finishedAt && previous.finished_at === run.finishedAt &&
       run.usageMicrousd !== null && previous.reported_microusd === run.usageMicrousd &&
       Date.parse(observed) - Date.parse(run.finishedAt) >= 10000 && Date.parse(observed) - Date.parse(previous.observed_at) >= 10000 && Date.parse(previous.observed_at) >= Date.parse(run.finishedAt) &&
-      JSON.stringify(previous.pricing_info) === JSON.stringify(evidence.pricing_info) && JSON.stringify(previous.charged_event_counts) === JSON.stringify(evidence.charged_event_counts) && previous.platform_usage_billing_model === evidence.platform_usage_billing_model) {
+      JSON.stringify(previous.pricing_info) === JSON.stringify(evidence.pricing_info) && JSON.stringify(previous.charged_event_counts) === JSON.stringify(evidence.charged_event_counts) && previous.platform_usage_billing_model === evidence.platform_usage_billing_model && JSON.stringify(previous.usage_quantities)===JSON.stringify(evidence.usage_quantities) && JSON.stringify(previous.included_usage_components_microusd)===JSON.stringify(evidence.included_usage_components_microusd)) {
     evidence.classification = 'settled_observation';
   }
   return evidence;

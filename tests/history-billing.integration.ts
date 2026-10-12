@@ -39,7 +39,7 @@ it('retains delayed stable evidence and prevents stale completion or metadata ov
  await captureRunBilling(owner,calls[0].id,{...meta,usage:0.001},new Date(now-40000).toISOString());
  await transaction('worker',null,async c=>{await c.query('select call_id from flight.provider_calls where owner_id=$1 and call_id=$2 for update',[owner,calls[0].id]);await projectReportedCost(c,owner,calls[0].id,100);});
  expect((await admin.query('select reported_microusd from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,calls[0].id])).rows[0].reported_microusd).toBe('6000');
- const summary=await publicJobBilling(owner,j.job_id);expect(summary).toMatchObject({reported_actor_microusd:6000,state:'stable_api_observation',exact_job_total_microusd:null,measured_external_microusd:null,invoice_confirmed:false});expect(JSON.stringify(summary)).not.toMatch(/QAFee|QA_NOT_A_REAL_TOKEN|run_id|call_id/);expect(await publicJobBilling(other,j.job_id)).toBeNull();
+ const summary=await publicJobBilling(owner,j.job_id);expect(summary).toMatchObject({reported_actor_microusd:6000,state:'stable_api_observation',exact_job_total_microusd:null,measured_external_microusd:null,estimated_external_microusd:null,overhead_reserved_microusd:10000,invoice_confirmed:false});expect(JSON.stringify(summary)).not.toMatch(/QAFee|QA_NOT_A_REAL_TOKEN|run_id|call_id/);expect(await publicJobBilling(other,j.job_id)).toBeNull();
 });
 it('a capped search metadata read cannot starve later return and booking evidence',async()=>{
  const {j,calls}=await setup(['search','return','booking']);await admin.query('update flight.provider_calls set reads_reserved=read_cap where owner_id=$1 and call_id=$2',[owner,calls[0].id]);

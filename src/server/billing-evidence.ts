@@ -25,14 +25,18 @@ export async function reconcileJobBilling(owner:string,id:string){
  const summary=await publicJobBilling(owner,id);return summary?{...summary,reconciliation:{attempted:calls.length,captured,pending:calls.length-captured}}:null;
 }
 export async function publicJobBilling(owner:string,id:string){return transaction('worker',null,async c=>{
+ // Calls and held slots must share a snapshot during an atomic prepaid transfer.
+ await c.query('set transaction isolation level repeatable read, read only');
  if(!(await c.query('select job_id from flight.jobs where owner_id=$1 and job_id=$2',[owner,id])).rows.length)return null;
  const calls=(await c.query(`select p.ceiling_microusd,p.reads_reserved,p.read_cap,p.reported_microusd,
  (select e.payload-'run_id' from flight.billing_evidence e where e.owner_id=p.owner_id and e.call_id=p.call_id order by observed_at desc limit 1) as evidence
  from flight.provider_calls p where p.owner_id=$1 and p.job_id=$2 order by p.created_at`,[owner,id])).rows;
- const held=Number((await c.query("select coalesce(sum(s.ceiling_microusd),0) as amount from flight.batch_items i join flight.batch_slots s using(owner_id,batch_id,ordinal) where i.owner_id=$1 and i.child_job_id=$2 and s.state='held'",[owner,id])).rows[0].amount);
+ const holds=(await c.query("select coalesce(sum(s.ceiling_microusd),0) as amount,coalesce(sum(least(s.ceiling_microusd,10000)),0) as overhead from flight.batch_items i join flight.batch_slots s using(owner_id,batch_id,ordinal) where i.owner_id=$1 and i.child_job_id=$2 and s.state='held'",[owner,id])).rows[0];
+ const held=Number(holds.amount);
  const reserved=held+calls.reduce((n,p)=>n+Number(p.ceiling_microusd),0),known=calls.length>0&&calls.every(p=>p.evidence?.reported_microusd!==null&&p.evidence?.reported_microusd!==undefined);
  const reported=known?calls.reduce((n,p)=>n+Number(p.evidence.reported_microusd),0):null;
- return {job_id:id,...billingSummary({reserved_microusd:reserved,reported_actor_microusd:reported,measured_external_microusd:null,estimated_external_microusd:calls.length*10000}),
+ return {job_id:id,...billingSummary({reserved_microusd:reserved,reported_actor_microusd:reported,measured_external_microusd:null,estimated_external_microusd:null}),
+  overhead_reserved_microusd:Number(holds.overhead)+calls.reduce((n,p)=>n+Math.min(Number(p.ceiling_microusd),10000),0),
   state:calls.length&&calls.every(p=>p.evidence?.classification==='settled_observation')?'stable_api_observation':'pending_evidence',
   read_requests_reserved:calls.reduce((n,p)=>n+p.reads_reserved,0),read_request_cap:calls.reduce((n,p)=>n+p.read_cap,0),
   calls:calls.map(p=>({status:p.evidence?.status??'unknown',classification:p.evidence?.classification??'unknown',observed_at:p.evidence?.observed_at??null,reported_microusd:p.evidence?.reported_microusd??null,pricing_info:p.evidence?.pricing_info??null,charged_event_counts:p.evidence?.charged_event_counts??null,platform_usage_billing_model:p.evidence?.platform_usage_billing_model??null})),

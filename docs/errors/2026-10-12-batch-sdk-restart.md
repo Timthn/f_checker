@@ -33,3 +33,14 @@ ownership until the lease expires. This explains why the current timeout is not
 proof of permanent recovery failure. A revised bounded verifier must wait beyond
 the ownership lease or use a supported, explicitly isolated QA lease configuration,
 then prove completed checkpoints and no repeated POST. Neither has passed yet.
+
+Subsequent qualified verification (cycle03 round3): a new isolated run with
+120s QA-only ownership lease and480s deadline completed successfully. Result:
+`data/batch-workflow-recovery-result-8948852dbeb74b45b249e6a7c57f93c7.json`.
+All three SDK executions completed after abrupt restart; four unique synthetic
+search/return starts, four checkpoints,37 decoded ID-only steps, unchanged parent
+membership, no double debit and purged private references were verified.
+`reservations_restored:true`; readonly ledger confirms500000/270000/0.
+The previous failure remains valid historical evidence. Production860s lease
+has not been changed or independently timed through; no live source acceptance
+or complete invoice is inferred from this fixture-IO pass.

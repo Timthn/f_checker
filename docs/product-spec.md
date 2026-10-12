@@ -1,5 +1,7 @@
 # F Checker — Product Spec v0.1
 
+Latest user amendment (2026-10-12): this is a personal-use flight dashboard. Prioritize the four core tasks and straightforward interaction; no team permissions, shared workspaces, memberships or complex accounting UI. Existing authentication remains minimal private-data protection. Query cost details are collapsed by default; necessary secret/budget/replay safeguards remain server-side. Unknown source rights remain labeled honestly. This amendment does not authorize booking, deployment, subscriptions or larger budgets.
+
 2026-10-12 reconciliation: user selected Apify, bounded live probe is documented in docs/connectors/apify-live-spike-2026-10-12.md. The original no-call preflight boundary below was superseded only for that authorized spike; application implementation/deployment has not started. Updated stack and migration conventions: docs/architecture/apify-stack-fit.md.
 
 日期：2026-10-11（Asia/Hong_Kong）。状态：可评审草案；开发前阶段，不代表用户已批准所有默认值。
