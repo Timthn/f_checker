@@ -1,12 +1,12 @@
-# F Checker — Product Spec v0.1
+# Flight cheaker — Product Spec v0.1
 
 Latest user amendment (2026-10-12): this is a personal-use flight dashboard. Prioritize the four core tasks and straightforward interaction; no team permissions, shared workspaces, memberships or complex accounting UI. Existing authentication remains minimal private-data protection. Query cost details are collapsed by default; necessary secret/budget/replay safeguards remain server-side. Unknown source rights remain labeled honestly. This amendment does not authorize booking, deployment, subscriptions or larger budgets.
 
 Batch results keep a collapsed source-candidate list even when verified recommendations are empty. Each admitted query displays at most ten compatible unique itineraries in source order, with visible shown/compatible counts and observation freshness. Unknown fares are never combined or ranked as confirmed cheapest; missing baggage, party scope, arrival matching and stay-length evidence retain their original gates. Source candidates complement, rather than satisfy, the four-feature confirmed-recommendation acceptance.
 
-2026-10-12 reconciliation: user selected Apify, bounded live probe is documented in docs/connectors/apify-live-spike-2026-10-12.md. The original no-call preflight boundary below was superseded only for that authorized spike; application implementation/deployment has not started. Updated stack and migration conventions: docs/architecture/apify-stack-fit.md.
+2026-10-12 reconciliation: user selected Apify, bounded live probe is documented in docs/connectors/apify-live-spike-2026-10-12.md. The original no-call preflight boundary below was superseded only for that authorized spike; application implementation subsequently started; deployment remains unauthorized. Updated stack and migration conventions: docs/architecture/apify-stack-fit.md.
 
-日期：2026-10-11（Asia/Hong_Kong）。状态：可评审草案；开发前阶段，不代表用户已批准所有默认值。
+日期：2026-10-11（Asia/Hong_Kong）；2026-10-12进入应用开发。下文开发前范围为历史，实际开发Goal及后续直接指示优先；原始功能验收保留。当前5/5停止状态见 docs/qa/application-acceptance-2026-10-12.md。
 
 ## 1. 目标与范围
 
@@ -126,4 +126,4 @@ job 状态 queued/running/partial/succeeded/failed/cancelled；UI 区分 loading
 
 2026-10-12 user explicitly states that the booking API is not needed. Production query scope is amended to flight discovery and analysis: one-way search only; round-trip search followed by return lookup. Do not invoke the provider booking endpoint or build ticket purchase/issuance flows. Existing booking samples/observations remain historical evidence; removing the live endpoint is not permission to fabricate party-inclusive fare, baggage or fare-family proof. Keep unverified returned amounts clearly marked; complete selected journey reconstruction is separate from price/rights confirmation.
 
-Update chain contracts, operation keys/admission reservation math, workflows, tests, UI coverage and documentation together. Preserve existing reservations and never refund actual ambiguous/dispatched calls based on this scope change. The currently running pre-amendment SDK QA clone uses synthetic supplier IO only; its recovery result, if obtained, is historical orchestration evidence and must not substitute for the amended search/return workflow acceptance. Complete its scoped cleanup before starting another DB mutation suite.
+Update chain contracts, operation keys/admission reservation math, workflows, tests, UI coverage and documentation together. Preserve existing reservations and never refund actual ambiguous/dispatched calls based on this scope change. Historical amendment note: the pre-amendment synthetic-IO QA clone is stopped and cleaned. Later amended search/return recovery proof is separately qualified in round3 progress and does not establish live source acceptance.
