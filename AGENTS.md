@@ -3,7 +3,7 @@
 ## Scope and authority
 Only work in `C:/Users/Tim Ngan/Desktop/projects/f_checker` and only commit/push to `https://github.com/Timthn/f_checker` (SSH equivalent permitted). Before any Git write, verify root, branch and origin. Never change other repositories. Deletes must resolve inside this project; preserve user work. No core OS/global dependency changes, purchases, ticket issuance or deployment.
 
-Current goal: actual application development (2026-10-12). User explicitly requested round-counter reset with limit5 on2026-10-12: start continuation cycle2026-10-12-live-batch-02, now completed1/5. Previous10 completed rounds remain historical and are not deleted. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
+Current goal: actual application development (2026-10-12). User explicitly requested round-counter reset with limit5 on2026-10-12: start continuation cycle2026-10-12-live-batch-02, now completed2/5. Previous10 completed rounds remain historical and are not deleted. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
@@ -12,7 +12,7 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 - Four features: top-ten filtered offers, two price views with signal, split-screen rendezvous, flexible departure/return ranges.
 - Economy and business; baggage includes carry-on versus checked, not a single ambiguous yes/no flag.
 - User confirmed both same-trip observed price history and neighboring travel-date prices as separate views.
-- 2026-10-12 user accepts provider route/search history for first-release reference charts/signals, separately labeled 航线价格历史 / Route price history. User then requests continuation prioritizing live meeting/flexible batch queries, comparable quote recording and full cost reconciliation. Plan: docs/plans/2026-10-12-live-batch-continuation.md. New user-authorized cycle, currently1/5; historical10 and budget retained.
+- 2026-10-12 user accepts provider route/search history for first-release reference charts/signals, separately labeled 航线价格历史 / Route price history. User then requests continuation prioritizing live meeting/flexible batch queries, comparable quote recording and full cost reconciliation. Plan: docs/plans/2026-10-12-live-batch-continuation.md. New user-authorized cycle, currently2/5; historical10 and budget retained.
 - Unknown baggage is not zero/free. Provider search-level history is not flight-specific history.
 - Never claim global cheapest, fabricated history or real validation based on demo data.
 
@@ -62,8 +62,8 @@ This file applies within this repository only. No existing AGENTS.md/CLAUDE.md w
 ## Actual development index
 - Plan: docs/plans/2026-10-12-development.md
 - Runtime: bundled Node24.19.0; dependencies installed only locally with lockfile after engine verification.
-- Current continuation cycle2026-10-12-live-batch-02: completed1/5. Historical completed rounds10 retained. User explicitly authorized this counter reset; Goal not complete.
-- Batch foundation: src/domain/batch-contracts.ts, src/server/batches.ts, migration20261012100000_batch_admission.sql; tests/batch.integration.ts/vitest.batch.config.ts; ADR docs/decisions/0005-atomic-batch-admission.md. HTTP/parent Workflow/UI wiring remains next.
+- Current continuation cycle2026-10-12-live-batch-02: completed2/5. Historical completed rounds10 retained. User explicitly authorized this counter reset; Goal not complete.
+- Batch foundation: src/domain/batch-contracts.ts, src/server/batches.ts, migration20261012100000_batch_admission.sql; tests/batch.integration.ts/vitest.batch.config.ts; ADR docs/decisions/0005-atomic-batch-admission.md. Read-only results API: src/server/batch-results.ts, src/domain/batch-results.ts, src/app/api/v1/batches/[id]/results/route.ts; tests/batch-results.test.ts. Paid creation/parent Workflow/UI wiring remains next.
 - Comparable recording: src/domain/history-recording.ts, src/server/offer-recording.ts; safe fee primitives src/domain/billing.ts. Current source still lacks full comparison evidence; durable billing reconciliation/route-history wiring pending.
 - Previous round10 local critical-flow checks passed; its stop is historical after explicit user reset. Current priorities: live meeting/flexible batch execution, comparable history and full billing reconciliation. Acceptance checkpoint: docs/errors/2026-10-12-round10-acceptance-gates.md. No new live provider calls.
 - Local recovery/account guard: src/instrumentation.ts, src/connectors/apify-account.ts, src/server/provider-allowance.ts; docs/decisions/0003-local-workflow-and-free-account.md

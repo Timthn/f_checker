@@ -53,7 +53,7 @@ export function history(offer:Offer, observations:Observation[], now=new Date())
   return {points,mean:values.length?values.reduce((a,b)=>a+b,0)/values.length:null,baseline,signal:delta===null?'insufficient':delta<=-.05?'low':delta>=.05?'high':'typical',delta,version:'daily-median-30d-v1'};
 }
 export type RendezvousPair={a:Offer;b:Offer;total:number;gap:number;duration:number};
-function rendezvousCandidates(a:Offer[],b:Offer[],day:string,locked:string|undefined,requirements:{a:Search;b:Search},now:Date) {
+export function rendezvousCandidates(a:Offer[],b:Offer[],day:string,locked:string|undefined,requirements:{a:Search;b:Search},now:Date) {
   const pairs:RendezvousPair[]=[];
   for(const x of a) for(const y of b){
     if(qualifies(x,requirements.a,now)!=='confirmed'||qualifies(y,requirements.b,now)!=='confirmed')continue;
@@ -68,9 +68,25 @@ function rendezvousCandidates(a:Offer[],b:Offer[],day:string,locked:string|undef
   return pairs;
 }
 const pairIdentity=(p:RendezvousPair,q:RendezvousPair)=>p.a.offer_id.localeCompare(q.a.offer_id)||p.b.offer_id.localeCompare(q.b.offer_id);
+export function rendezvousFrontier(pairs:RendezvousPair[],limit=5){
+ const sorted=[...pairs].sort((p,q)=>p.total-q.total||p.gap-q.gap||p.duration-q.duration||pairIdentity(p,q));
+ const frontier:RendezvousPair[]=[];let cheaperGap=Infinity;
+ for(let i=0;i<sorted.length;){
+  let end=i+1;while(end<sorted.length&&sorted[end].total===sorted[i].total)end++;
+  const gap=sorted[i].gap;
+  if(gap<cheaperGap){
+   // Equal price/gap pairs do not dominate each other. Only five can reach the
+   // final top-five result; retain their best duration/identity ties per point.
+   let ties=0;for(let j=i;j<end&&sorted[j].gap===gap&&ties<5;j++,ties++)frontier.push(sorted[j]);
+   cheaperGap=gap;
+  }
+  i=end;
+ }
+ return frontier.slice(0,limit);
+}
 export function rendezvous(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
   const pairs=rendezvousCandidates(a,b,day,locked,requirements,now).filter(p=>p.gap<=maxMinutes);
-  return pairs.filter(p=>!pairs.some(q=>q!==p && q.total<=p.total && q.gap<=p.gap && (q.total<p.total || q.gap<p.gap))).sort((p,q)=>p.total-q.total || p.gap-q.gap || p.duration-q.duration || pairIdentity(p,q)).slice(0,5);
+  return rendezvousFrontier(pairs);
 }
 export function closestGapAlternatives(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
   if(!Number.isFinite(maxMinutes)||maxMinutes<0)return [];

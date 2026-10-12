@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {admitBatch,cancelBatch,getBatch} from '../src/server/batches';
 import {claimJob,reserveCall,beginDispatch,createJob,cancelJob} from '../src/server/jobs';
 import {recordOffer} from '../src/server/offer-recording';
+import {readBatchResults} from '../src/server/batch-results';
 import type {Offer} from '../src/domain/contracts';
 import {transaction,pool} from '../src/server/db';
 process.loadEnvFile('.env');process.loadEnvFile('.env.migration');
@@ -42,6 +43,13 @@ it('whole admission is atomic, owner-scoped and idempotent before any provider I
  await expect(transaction('api',owner,c=>c.query('select * from flight.batch_slots'))).rejects.toMatchObject({code:'42501'});
  await expect(admitBatch(owner,'meeting',{...meeting,max_minutes:30},key)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
  await cancelBatch(owner,batch.batch_id);await cancelBatch(owner,batch.batch_id);expect(await lifetime()).toBe(baseline);
+});
+it('reads only this batch members through the restricted API role',async()=>{
+ const batch=await admitBatch(owner,'flexible',flexible,randomUUID());
+ const result=await readBatchResults(owner,batch.batch_id);expect(result).toMatchObject({kind:'flexible',source:'batch_members_only',paid_requests:0,coverage:{admitted:2,searched:0,verified_cells:0},result_coverage:{omitted_offers:0}});
+ expect(result?.kind==='flexible'?result.cells.map(c=>c.query_status):null).toEqual(['queued','queued']);
+ expect(await readBatchResults(other,batch.batch_id)).toBeNull();expect(await readBatchResults(owner,randomUUID())).toBeNull();
+ expect(BigInt(await lifetime())-BigInt(baseline)).toBe(180000n);
 });
 it('competing complete plans cannot partially overspend the shared lifetime cap',async()=>{
  const outcomes=await Promise.allSettled([admitBatch(owner,'flexible',flexible,randomUUID()),admitBatch(owner,'flexible',flexible,randomUUID())]);
