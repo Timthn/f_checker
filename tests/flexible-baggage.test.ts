@@ -1,0 +1,18 @@
+import {it,expect} from 'vitest';
+import {flexibleTravelerSearch} from '../src/domain/flexible-baggage';
+import {searchSchema} from '../src/domain/contracts';
+import {flexibleSchema} from '../src/domain/analysis-contracts';
+import {planBatch} from '../src/domain/batch-contracts';
+import {previewBatch} from '../src/domain/batch-preview';
+import {stableId} from '../src/domain/rules';
+import {parseSearch} from '../src/connectors/apify-adapter';
+import sample from '../docs/connectors/fixtures/apify-build-0.0.2/economy-one-way.json';
+const base={origin:'HKG',destination:'NRT',departure:'2026-11-10',return_date:'2026-11-17',adults:2,cabin:'economy',currency:'HKD',carry_on:0,checked:0,traveler_baggage:[{carry_on:1,checked:1},{carry_on:0,checked:2}]};
+const flexible={base,departure_from:'2026-11-10',departure_to:'2026-11-10',return_from:'2026-11-17',return_to:'2026-11-17',min_nights:6,max_nights:10,max_budget_microusd:500000};
+it('normalizes independent preferences to the higher uniform per-person filter, never summed counts',()=>{const q=searchSchema.parse(base);expect(q).toMatchObject({adults:2,carry_on:1,checked:2,traveler_baggage:base.traveler_baggage});expect(searchSchema.parse({...base,carry_on:1,checked:1})).toEqual(q);const allOne=searchSchema.parse({...base,traveler_baggage:[{carry_on:1,checked:1},{carry_on:1,checked:1}]});expect(allOne.carry_on).toBe(1);expect(allOne.checked).toBe(1);});
+it('rejects wrong party counts, missing or extra travelers and unsupported per-person counts',()=>{for(const bad of [{...base,adults:1},{...base,adults:3},{...base,traveler_baggage:[]},{...base,traveler_baggage:[base.traveler_baggage[0]]},{...base,traveler_baggage:[...base.traveler_baggage,base.traveler_baggage[0]]},{...base,traveler_baggage:[{carry_on:2,checked:0},base.traveler_baggage[1]]}])expect(searchSchema.safeParse(bad).success).toBe(false);});
+it('retains legacy shared-baggage requests and their identity without inventing traveler preferences',()=>{const {traveler_baggage,...legacy}=base;const q=searchSchema.parse({...legacy,adults:6,carry_on:0,checked:1});expect(q).not.toHaveProperty('traveler_baggage');expect(q.checked).toBe(1);});
+it('keeps A/B preferences in normalized batch and cache identities, with browser/server plan parity',()=>{const q=flexibleSchema.parse(flexible),p=planBatch('flexible',flexible);expect(q.base.carry_on).toBe(1);expect(q.base.checked).toBe(2);expect(p.queries[0].query.traveler_baggage).toEqual(base.traveler_baggage);expect(p.queries[0].query.adults).toBe(2);expect(previewBatch('flexible',flexible).ceiling_microusd).toBe(p.ceiling_microusd);const swapped=searchSchema.parse({...base,traveler_baggage:[...base.traveler_baggage].reverse()});expect(swapped.carry_on).toBe(q.base.carry_on);expect(stableId(swapped)).not.toBe(stableId(q.base));expect(stableId(searchSchema.parse(q.base))).toBe(stableId(q.base));});
+it('never turns requested conservative baggage filters into returned passenger rights',()=>{const q=searchSchema.parse({...base,return_date:undefined});const offers=parseSearch(sample.provider_response,q);expect(offers.length).toBeGreaterThan(0);expect(offers.every(o=>o.baggage.length===0&&!o.price_complete&&o.quoted_adults===null)).toBe(true);});
+
+it('keeps the UI single-traveler route compatible without a hidden second-person preference',()=>{const old=searchSchema.parse(base),bags=[{carry_on:0,checked:1},{carry_on:1,checked:2}];const one=searchSchema.parse(flexibleTravelerSearch(old,bags,1));expect(one).toMatchObject({adults:1,carry_on:0,checked:1});expect(one).not.toHaveProperty('traveler_baggage');expect(searchSchema.parse(flexibleTravelerSearch(old,bags,2))).toMatchObject({adults:2,carry_on:1,checked:2,traveler_baggage:bags});});

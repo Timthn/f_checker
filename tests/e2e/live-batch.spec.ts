@@ -19,35 +19,45 @@ test('meeting explicit admission preserves ambiguous request, resumes original t
   }
   if(path.endsWith('/cancel')){cancels++;cancelled=true;return r.fulfill({json:{cancelled:true}});}
   reads++;
-  if(path.endsWith('/results'))return r.fulfill({json:{kind:'meeting',pairs:[],alternatives:[],source_candidates:[{ordinal:0,participants:['a'],query:{origin:'HKG',destination:'NRT',departure:'2026-11-10'},returned_count:1,omitted_count:0,offers:[{offer_id:'qa-unverified',observed_at:'2026-10-01T00:00:00Z',expires_at:'2026-10-01T00:15:00Z',complete:true,money:{minor:98900,currency:'HKD',digits:2},segments:[{flight:'QA UNVERIFIED CANDIDATE',departure_local:'2026-11-10T09:00:00'}]}]}],coverage:{query_constraints_verified:0,searched:1,admitted:2}}});
+  if(path.endsWith('/results'))return r.fulfill({json:{kind:'meeting',pairs:[],alternatives:[],source_candidates:[{ordinal:0,participants:['a'],query:{origin:'HKG',destination:'NRT',departure:'2026-11-10'},returned_count:1,omitted_count:0,offers:[{offer_id:'qa-unverified',observed_at:'2026-10-01T00:00:00Z',expires_at:'2026-10-01T00:15:00Z',complete:true,money:{minor:98900,currency:'HKD',digits:2},segments:[{leg_index:0,from:'HKG',to:'NRT',flight:'QA UNVERIFIED CANDIDATE',departure_local:'2026-11-10T09:00:00',arrival_local:'2026-11-10T14:00:00',cabin:'economy'}]}]}],coverage:{query_constraints_verified:0,searched:1,admitted:2}}});
   return r.fulfill({json:{batch_id:batchId,status:cancelled?'cancelled':'running',ceiling_microusd:120000,items:[{ordinal:0,status:cancelled?'cancelled':'running',phase:'search',query:{origin:'HKG',destination:'NRT',departure:'2026-11-10'}}]}});
  });
  await signIn(page);await page.getByRole('button',{name:'Meet together',exact:true}).click();
  const live=page.getByRole('region',{name:'Live batch · explicit request'});
- await live.getByLabel('Whole-batch ceiling (USD)',{exact:true}).fill('0.12');await live.getByRole('combobox',{name:'Departure coverage',exact:true}).selectOption('fixed_departures');
+ await expect(live.getByLabel('Whole-batch ceiling (USD)',{exact:true})).toHaveCount(0);await expect(live).not.toContainText('USD');await live.getByRole('combobox',{name:'Departure coverage',exact:true}).selectOption('fixed_departures');
  await live.hover();await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(0);
- await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).click();await expect(live.getByRole('alert')).toHaveText('No confirmed response. The original request is saved for recovery.');
+ await live.getByRole('button',{name:'Search these dates',exact:true}).click();await expect(live.getByRole('alert')).toHaveText('No confirmed response. The original request is saved for recovery.');
  await expect(live.getByRole('button',{name:'Revise rejected request',exact:true})).toHaveCount(0);
  await page.getByRole('heading',{name:'Traveler A',exact:true}).locator('..').getByLabel('From',{exact:true}).fill('LHR');
  await live.getByRole('button',{name:'Recover identical request',exact:true}).click();await expect(live.getByText('Query running',{exact:true}).first()).toBeVisible();
- expect(posts).toHaveLength(2);expect(posts[1]).toEqual(posts[0]);expect((posts[1].body as {request:{a:{origin:string};max_budget_microusd:number;departure_scope:string}}).request).toMatchObject({a:{origin:'HKG'},max_budget_microusd:120000,departure_scope:'fixed_departures'});
+ expect(posts).toHaveLength(2);expect(posts[1]).toEqual(posts[0]);expect((posts[1].body as {request:{a:{origin:string};max_budget_microusd:number;departure_scope:string}}).request).toMatchObject({a:{origin:'HKG'},max_budget_microusd:500000,departure_scope:'fixed_departures'});
  const candidates=live.locator('details').filter({has:page.getByText('View returned quotes · unverified',{exact:true})});await expect(candidates).not.toHaveAttribute('open');await candidates.locator('summary').click();await expect(candidates.locator('.fare-row').filter({hasText:'QA UNVERIFIED CANDIDATE'})).toBeVisible();await expect(candidates.getByText(/these are not confirmed recommendations/)).toBeVisible();await expect(candidates.getByText(/Saved quote expired/)).toBeVisible();await candidates.locator('summary').click();await candidates.locator('summary').click();await expect(candidates.getByText(/Saved quote expired/)).toBeVisible();expect(posts).toHaveLength(2);
  const readBefore=reads;await live.getByRole('button',{name:'Refresh progress · no new query',exact:true}).click();await expect.poll(()=>reads).toBeGreaterThan(readBefore);expect(posts).toHaveLength(2);
  await live.getByRole('button',{name:'Resume original task',exact:true}).click();await expect.poll(()=>posts.length).toBe(3);expect(posts[2]).toEqual(posts[0]);
  await live.getByRole('button',{name:'Cancel',exact:true}).click();await expect.poll(()=>cancels).toBe(1);await expect(live.getByRole('status')).toHaveText('Cancelled');
- await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(live.locator('.fare-row')).toHaveCount(0);await expect(live.getByRole('button',{name:'Request live batch · may incur charges',exact:true})).toBeDisabled();expect(errors).toEqual([]);
+ await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(live.locator('.fare-row')).toHaveCount(0);await expect(live.getByRole('button',{name:'Search these dates',exact:true})).toBeDisabled();expect(errors).toEqual([]);
 });
 test('flexible live request uses explicit ranges while edits and language changes only render',async({page})=>{
- const posts:unknown[]=[],errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ const posts:unknown[]=[],keys:(string|undefined)[]=[],errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/v1/batches**',r=>{
-  if(r.request().method()==='POST'){posts.push(r.request().postDataJSON());return r.fulfill({json:{batch_id:batchId,status:'partial'}});}
+  if(r.request().method()==='POST'){posts.push(r.request().postDataJSON());keys.push(r.request().headers()['idempotency-key']);return posts.length===2?r.fulfill({status:503,json:{error:{code:'PERSISTENCE_NOT_READY'}}}):r.fulfill({json:{batch_id:batchId,status:'partial'}});}
   if(new URL(r.request().url()).pathname.endsWith('/results'))return r.fulfill({json:{kind:'flexible',recommendations:[],cells:[{departure:'2026-11-09',return_date:'2026-11-17',state:'unknown',money:null,query_status:'partial',searched:true}],coverage:{query_constraints_verified:0,searched:1,admitted:1,verified_cells:0}}});
   return r.fulfill({json:{batch_id:batchId,status:'partial',ceiling_microusd:90000,items:[]}});
  });
  await signIn(page);await page.getByRole('button',{name:'Flexible dates',exact:true}).click();await page.getByLabel('Departure window · to',{exact:true}).fill('2026-11-09');await page.getByLabel('Return window · to',{exact:true}).fill('2026-11-17');
  const live=page.getByRole('region',{name:'Live batch · explicit request'});await live.hover();await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(0);
- await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).click();await expect(live.getByRole('button',{name:'Prepare a new query',exact:true})).toBeVisible();expect(posts).toHaveLength(1);expect(posts[0]).toMatchObject({kind:'flexible',request:{departure_from:'2026-11-09',departure_to:'2026-11-09',return_from:'2026-11-17',return_to:'2026-11-17',max_budget_microusd:100000}});
- await expect(live.getByText('No fully verified date combination.',{exact:true})).toBeVisible();await expect(live.getByText('Verified / searched / planned · 0 / 1 / 1',{exact:true})).toBeVisible();expect(errors).toEqual([]);
+ const travelerA=page.getByRole('heading',{name:'Traveler A',exact:true}).locator('..'),travelerB=page.getByRole('heading',{name:'Traveler B',exact:true}).locator('..');
+ await travelerA.getByLabel('Carry-on pieces',{exact:true}).fill('1');await travelerA.getByLabel('Checked pieces',{exact:true}).fill('0');await travelerB.getByLabel('Carry-on pieces',{exact:true}).fill('0');await travelerB.getByLabel('Checked pieces',{exact:true}).fill('2');
+ await expect(page.getByText(/The source supports one uniform filter/)).toBeVisible();expect(posts).toHaveLength(0);
+ await page.screenshot({path:'docs/qa/screenshots/flexible-baggage-readable.png',fullPage:true});
+ await live.getByRole('button',{name:'Search these dates',exact:true}).click();await expect(live.getByRole('button',{name:'Prepare a new query',exact:true})).toBeVisible();expect(posts).toHaveLength(1);expect(posts[0]).toMatchObject({kind:'flexible',request:{departure_from:'2026-11-09',departure_to:'2026-11-09',return_from:'2026-11-17',return_to:'2026-11-17',max_budget_microusd:500000}});
+ await expect(live.getByText('No fully verified date combination.',{exact:true})).toBeVisible();await expect(live.getByText('Verified / searched / planned · 0 / 1 / 1',{exact:true})).toBeVisible();
+ expect(posts[0]).toMatchObject({request:{base:{adults:2,carry_on:1,checked:2,traveler_baggage:[{carry_on:1,checked:0},{carry_on:0,checked:2}]}}});
+ await page.getByLabel('From',{exact:true}).fill('LHR');expect(posts).toHaveLength(1);
+ await live.getByRole('button',{name:'Search again',exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
+ await expect.poll(()=>posts.length).toBe(2);expect(keys[1]).not.toBe(keys[0]);expect(posts[1]).toMatchObject({kind:'flexible',request:{base:{origin:'LHR'}}});
+ await expect(live.getByRole('alert')).toHaveText('No confirmed response. The original request is saved for recovery.');await expect(live.getByRole('button',{name:'Search again',exact:true})).toHaveCount(0);
+ await page.getByLabel('From',{exact:true}).fill('HKG');await live.getByRole('button',{name:'Recover identical request',exact:true}).click();await expect.poll(()=>posts.length).toBe(3);expect(keys[2]).toBe(keys[1]);expect(posts[2]).toEqual(posts[1]);expect(errors).toEqual([]);
 });
 test('a definitive rejection followed by an ambiguous retry cannot unlock a new admission key',async({page})=>{
  const keys:(string|undefined)[]=[];
@@ -56,7 +66,7 @@ test('a definitive rejection followed by an ambiguous retry cannot unlock a new 
   return keys.length===1?r.fulfill({status:409,json:{error:{code:'BATCH_BUDGET_EXCEEDED',params:{required_microusd:360000,available_microusd:100000}}}}):r.fulfill({status:503,json:{error:{code:'PERSISTENCE_NOT_READY'}}});
  });
  await signIn(page);await page.getByRole('button',{name:'Meet together',exact:true}).click();const live=page.getByRole('region',{name:'Live batch · explicit request'});
- await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).click();await expect(live.getByRole('button',{name:'Revise rejected request',exact:true})).toBeVisible();await expect(live.getByText('Required ceiling · USD 0.36 / Available budget · USD 0.10',{exact:true})).toBeVisible();
+ await live.getByRole('button',{name:'Search these dates',exact:true}).click();await expect(live.getByRole('button',{name:'Revise rejected request',exact:true})).toBeVisible();await expect(live.getByRole('alert')).toBeVisible();await expect(live.getByText(/Required ceiling ·/)).toHaveCount(0);await expect(live.getByLabel('Whole-batch ceiling (USD)',{exact:true})).toHaveCount(0);await expect(live).not.toContainText('USD 0.36');
  await live.getByRole('button',{name:'Recover identical request',exact:true}).click();await expect(live.getByRole('alert')).toHaveText('No confirmed response. The original request is saved for recovery.');await expect(live.getByRole('button',{name:'Revise rejected request',exact:true})).toHaveCount(0);await expect(live.getByText(/Required ceiling ·/)).toHaveCount(0);expect(keys).toHaveLength(2);expect(keys[1]).toBe(keys[0]);
 });
 test('storage-denied recovery warning survives successful batch admission',async({page})=>{
@@ -67,6 +77,6 @@ test('storage-denied recovery warning survives successful batch admission',async
   return r.fulfill({json:{batch_id:batchId,status:'running',ceiling_microusd:120000,items:[]}});
  });
  await signIn(page);await page.getByRole('button',{name:'Meet together',exact:true}).click();const live=page.getByRole('region',{name:'Live batch · explicit request'});
- await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).click();await expect(live.getByRole('status')).toHaveText('Query running');await expect(live.getByRole('alert')).toHaveText('Browser storage is unavailable. Keep this page open to retain the recovery request.');
+ await live.getByRole('button',{name:'Search these dates',exact:true}).click();await expect(live.getByRole('status')).toHaveText('Query running');await expect(live.getByRole('alert')).toHaveText('Browser storage is unavailable. Keep this page open to retain the recovery request.');
  await live.getByRole('button',{name:'Refresh progress · no new query',exact:true}).click();await expect(live.getByRole('alert')).toHaveText('Browser storage is unavailable. Keep this page open to retain the recovery request.');
 });

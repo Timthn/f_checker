@@ -15,7 +15,7 @@ run(['node_modules/next/dist/bin/next','build','--webpack']);
  try{
   let ready=false;for(let i=0;i<30&&!closed;i++){try{const r=await fetch(`http://127.0.0.1:${port}/api/v1/health`,{signal:AbortSignal.timeout(1000)});if(r.ok&&(await r.json()).provider_live_enabled===false){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,1000));}
   if(!ready)throw Error('CLEAN_START_FAILED');
-  const base=`http://127.0.0.1:${port}`;const page=await fetch(base,{signal:AbortSignal.timeout(10000)});if(!page.ok||!(await page.text()).includes('Flight cheaker'))throw Error('CLEAN_PAGE_FAILED');
+  const base=`http://127.0.0.1:${port}`;const page=await fetch(base,{signal:AbortSignal.timeout(10000)});if(!page.ok||!(await page.text()).includes('Flight checker'))throw Error('CLEAN_PAGE_FAILED');
   const preview=await fetch(`${base}/api/v1/preview`,{signal:AbortSignal.timeout(10000)});if(!preview.ok||!Array.isArray((await preview.json()).offers))throw Error('CLEAN_PREVIEW_FAILED');
   fs.writeFileSync(path.join(root,'data/clean-install-result.json'),JSON.stringify({node:process.version,target,install:true,build:true,start:true,health:true,page:true,preview:true,credentials_copied:false},null,2));console.log('CLEAN_INSTALL_BUILD_START_AND_PUBLIC_PREVIEW_PASSED');
  }finally{child.kill();await Promise.race([new Promise(r=>child.once('exit',r)),new Promise(r=>setTimeout(r,5000))]);}

@@ -46,3 +46,9 @@ Full original acceptance remains incomplete; historical cycle03 stopped5/5. User
 History/billing DB tests use `npx vitest run --config vitest.evidence.config.ts`. Batch restart harness: `node tools/batch-workflow-recovery.cjs`, actual SDK with synthetic supplier IO and temporary QA rows. Run DB suites serially. Its recorded isolated120s lease pass is not proof of production860s or live supplier recovery.
 
 Explicit live smoke: `FC_EXPLICIT_LIVE_CHECK=1 node tools/live-reference-smoke.cjs` (set the environment flag in the shell first on Windows). This is a paid, bounded one-way verification, not an automatic test. It preserves an ignored secret QA state, recovers only its existing job after interruption and retains real reservations/evidence. Never delete its state to force another run or refund it as synthetic. Normal tests do not invoke Apify.
+
+
+### Personal dashboard feedback update
+The Usage tab shows private monthly saved Apify run counts and reported cost against a USD5 reference. Flight pages hide provider cost controls. Flexible search samples3date pairs by default (up to8); it does not claim a global cheapest result. Detail price is the selected itinerary source quote; neighboring-date chart uses matching saved captures, while route history/mean uses observation dates. Unknown baggage remains unknown with official airline references. See docs/decisions/0012-readable-quotes-and-personal-usage.md and docs/progress.md. No deployment or automatic sampling.
+
+Flexible dates supports one or two travelers. A/B baggage preferences are independent; two-person source queries use the higher uniform requirement, explicitly labeled as a source limitation rather than included rights. After a definitive terminal batch, Search again submits current conditions once with a fresh key; ambiguous requests only recover their saved key/body.

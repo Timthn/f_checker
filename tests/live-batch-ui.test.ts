@@ -11,16 +11,17 @@ it('renders an explicit, disabled paid action without a nested form or hidden pa
  const html=markup('meeting','en');
  expect(html).toContain(en.batchPaidQuery);expect(html).toContain('disabled=""');
  expect(html).not.toContain('<form');expect(html.match(/<button/g)?.length).toBe(1);
- expect(html).toContain('type="button"');expect(html).toContain('value="0.10"');
- expect(html).toContain(en.batchBranchCoverage);expect(html).toContain(en.batchSourceGate);
+ expect(html).toContain('type="button"');expect(html).not.toContain(en.batchBudget);
+ expect(html).not.toContain('USD');expect(html).toContain(en.authRequired);
 });
 it('shows affordable fixed departure coverage by default and omits it for flexible date mode',()=>{
  expect(markup('meeting','en')).toContain('value="fixed_departures" selected=""');
  expect(markup('meeting','en')).toContain(en.batchFixedDepartures);
  expect(markup('flexible','en')).not.toContain(en.batchDepartureScope);
 });
-it('provides translated authorization, budget and live gate text in Chinese',()=>{
- const html=markup('flexible','zh-Hans');expect(html).toContain(zh.batchBudget);
- expect(html).toContain(zh.batchSourceGate);expect(html).toContain(zh.authRequired);
+it('provides concise translated strategy and bounded defaults without cost controls in Chinese',()=>{
+ const html=markup('flexible','zh-Hans');expect(html).not.toContain(zh.batchBudget);
+ expect(html).toContain(zh.strategyBriefHeuristic);expect(html).toContain(zh.authRequired);
+ expect(html).toContain('max="8"');expect(html).toContain('value="3"');
  for(const key of Object.keys(en).filter(k=>k.startsWith('batch')||k==='liveBatch'))expect(zh[key as keyof typeof en]).toBeTruthy();
 });

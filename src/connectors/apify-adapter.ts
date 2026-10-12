@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { money, stableId } from '../domain/rules';
 import type { Offer, Search, CalendarCell, Segment } from '../domain/contracts';
-const segment=z.object({departure_airport:z.string(),arrival_airport:z.string(),departure_time:z.string(),arrival_time:z.string(),flight_number:z.string(),cabin_class:z.string(),duration_minutes:z.number()});
+const segment=z.object({departure_airport:z.string(),arrival_airport:z.string(),departure_time:z.string(),arrival_time:z.string(),flight_number:z.string(),cabin_class:z.string(),duration_minutes:z.number(),airline:z.string().trim().min(1).max(120).optional().catch(undefined),airline_code:z.string().regex(/^[A-Z0-9]{2}$/).optional().catch(undefined)});
 const leg=z.object({segments:z.array(segment).min(1),duration_minutes:z.unknown().optional()});
 const candidate=z.object({legs:z.array(leg).min(1),price:z.number().nonnegative().nullable(),currency:z.string(),display_price:z.string().nullable().optional(),price_exact:z.number().nonnegative().nullable().optional(),carry_on_bags_included:z.number().nullable().optional(),checked_bags_included:z.number().nullable().optional()});
 const search=z.object({mode:z.enum(['search','return']),itineraries:z.array(candidate),scraped_at:z.iso.datetime(),trip_type:z.string().optional()});
@@ -13,7 +13,7 @@ function elapsedDuration(legs:z.infer<typeof leg>[]):number|null{
  for(const l of legs){const n=l.duration_minutes;if(typeof n!=='number'||!Number.isSafeInteger(n)||n<=0||l.segments.some(s=>!Number.isSafeInteger(s.duration_minutes)||s.duration_minutes<=0)||n<l.segments.reduce((sum,s)=>sum+s.duration_minutes,0))return null;total+=n;if(!Number.isSafeInteger(total))return null;}
  return total;
 }
-const segments=(legs:z.infer<typeof leg>[]):Segment[]=>legs.flatMap((l,leg_index)=>l.segments.map(s=>({leg_index,from:s.departure_airport,to:s.arrival_airport,departure_local:s.departure_time,arrival_local:s.arrival_time,departure_utc:null,arrival_utc:null,arrival_zone:null,flight:s.flight_number,cabin:s.cabin_class,duration:s.duration_minutes})));
+const segments=(legs:z.infer<typeof leg>[]):Segment[]=>legs.flatMap((l,leg_index)=>l.segments.map(s=>({leg_index,from:s.departure_airport,to:s.arrival_airport,departure_local:s.departure_time,arrival_local:s.arrival_time,departure_utc:null,arrival_utc:null,arrival_zone:null,flight:s.flight_number,cabin:s.cabin_class,duration:s.duration_minutes,...(s.airline?{airline:s.airline}:{}),...(s.airline_code?{airline_code:s.airline_code}:{})})));
 export function parseSearch(raw:unknown,query:Search):Offer[] {
   const data=search.parse(raw);
   return data.itineraries.filter((c):c is typeof c & {price:number}=>c.price!==null).map(c=>{

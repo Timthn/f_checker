@@ -46,7 +46,7 @@ export async function admitBatch(owner:string,kind:BatchPlan['kind'],input:unkno
  }
  const plan=planBatch(kind,normalized,locked,seeds);
  const p=period(),accountKeys=keys(owner,p);
- for(const key of accountKeys)if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,4000000,1000) on conflict do nothing',[key]);
+ for(const key of accountKeys)if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,5000000,1000) on conflict do nothing',[key]);
  const accounts=await c.query('select * from flight.budget_accounts where account_key=any($1::text[]) order by account_key for update',[accountKeys]);
  if(accounts.rows.length!==3)throw Error('BUDGET_NOT_CONFIGURED');
  const available=Math.min(...accounts.rows.map(a=>Number(BigInt(a.cap_microusd)-BigInt(a.reserved_microusd))));

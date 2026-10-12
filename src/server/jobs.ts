@@ -73,7 +73,7 @@ export async function reserveCall(job:Job,operation:string,ceiling=30000){return
    return {...call,reused:false,batch_prepaid:true};
   }
   const period=new Date().toISOString().slice(0,7),keys=['spike-lifetime',`month:${period}`,`owner:${job.owner_id}:${period}`].sort();
-  for(const key of keys){if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,4000000,1000) on conflict do nothing',[key]);}
+  for(const key of keys){if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,5000000,1000) on conflict do nothing',[key]);}
   const accounts=await c.query('select * from flight.budget_accounts where account_key=any($1::text[]) order by account_key for update',[keys]);
   if(accounts.rows.length!==3||accounts.rows.some(a=>BigInt(a.reserved_microusd)+BigInt(ceiling)>BigInt(a.cap_microusd)||a.calls_reserved+1>a.call_cap))throw Error('QUOTA_EXCEEDED');
   const cost=await c.query('select coalesce(sum(ceiling_microusd),0) as n from flight.provider_calls where owner_id=$1 and job_id=$2',[job.owner_id,job.job_id]);if(BigInt(cost.rows[0].n)+BigInt(ceiling)>100000n)throw Error('QUOTA_EXCEEDED');
