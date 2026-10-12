@@ -4,10 +4,18 @@ import one from '../docs/connectors/fixtures/apify-build-0.0.2/economy-one-way.j
 import back from '../docs/connectors/fixtures/apify-build-0.0.2/return-options.json';
 import {planSearch,planReturn} from '../src/connectors/apify-chain';
 import type {Search} from '../src/domain/contracts';
+import {referenceEligible,referenceNights} from '../src/domain/reference-recommendations';
 const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',return_date:'2026-11-17',cabin:'economy',adults:1,currency:'HKD',carry_on:0,checked:0};
 function search(){const r=structuredClone(round.provider_response);return {...r,itineraries:r.itineraries.map((c,i)=>({...c,departure_token:`synthetic-departure-${i}`}))};}
 function returns(){const r=structuredClone(back.provider_response);return {...r,itineraries:r.itineraries.map((c,i)=>({...c,booking_token:`synthetic-booking-${i}`}))};}
 describe('bounded private Apify chain planning',()=>{
+ it('replays captured real return quotes as references at capture time without price addition or rights promotion',()=>{
+  const a=planSearch(search(),q),result=planReturn(back.provider_response,q,a.next!.selected),at=new Date(Date.parse(back.provider_response.scraped_at)+1000);
+  expect(result.offers.every(o=>referenceEligible(o,q,at))).toBe(true);expect(result.offers.every(o=>referenceNights(o)!==null)).toBe(true);
+  expect(result.offers.map(o=>o.money.minor)).toEqual(back.provider_response.itineraries.map(o=>o.price*100));
+  expect(result.offers.every(o=>!o.time_verified&&!o.price_complete)).toBe(true);
+  expect(result.offers.every(o=>!referenceEligible(o,q,new Date(Date.parse(o.expires_at)+1)))).toBe(true);
+ });
  it('excludes explicitly unpriced candidates without shifting private continuation tokens',()=>{
   const raw=search();const unpriced=structuredClone(raw.itineraries[0]);Object.assign(unpriced,{price:null,departure_token:'unpriced-token'});raw.itineraries.unshift(unpriced);
   const expected=planSearch(search(),q);const actual=planSearch(raw,q);

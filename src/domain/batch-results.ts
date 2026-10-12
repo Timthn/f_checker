@@ -2,6 +2,7 @@ import {Temporal} from '@js-temporal/polyfill';
 import type {BatchPlan,LiveMeeting,LiveFlexible} from './batch-contracts';
 import type {Offer,CalendarCell} from './contracts';
 import {qualifies,rendezvous,rendezvousCandidates,rendezvousFrontier,closestGapAlternatives} from './rules';
+import {referenceEligible,referenceMeeting,referenceNights} from './reference-recommendations';
 
 export type BatchResultItem={ordinal:number;status:string;phase:string;offers:Offer[];searched?:boolean};
 const searched=(i:BatchResultItem|undefined)=>i?.searched??false;
@@ -46,7 +47,10 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   const distinct=<T extends {a:Offer;b:Offer}>(ps:T[])=>[...new Map(ps.map(p=>[`${p.a.offer_id}/${p.b.offer_id}`,p])).values()];
   const candidates=distinct(pairs),identity=(p:typeof candidates[number],r:typeof candidates[number])=>p.a.offer_id.localeCompare(r.a.offer_id)||p.b.offer_id.localeCompare(r.b.offer_id);
   const best=rendezvousFrontier(candidates);
-  return {kind:'meeting' as const,pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
+  const refs={a:[] as Offer[],b:[] as Offer[]};
+  for(const m of members)for(const side of ['a','b'] as const)if(m.planned.participants.includes(side))refs[side].push(...(m.item?.offers??[]).filter(o=>referenceEligible(o,m.planned.query,now)));
+  if(q.lock_a){const departure=lockedA?.segments.find(s=>s.leg_index===0)?.departure_local.slice(0,10);refs.a=lockedA&&departure&&sides.a.length&&referenceEligible(lockedA,{...q.a,departure},now)?[lockedA]:[];}
+  return {kind:'meeting' as const,...referenceMeeting(refs.a,refs.b,q.arrival_day,q.max_minutes),pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
  }
  const q=plan.request as LiveFlexible,cells:(CalendarCell&{query_status:string;searched:boolean})[]=[],verified:{offer:Offer;nights:number}[]=[];
  for(const m of members){
@@ -64,5 +68,12 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   cells.push({departure:m.planned.query.departure,return_date:m.planned.query.return_date??null,state:best?'verified':m.item?.status==='failed'?'failed':'unknown',money:best?.offer.money??null,...(best?{offer_id:best.offer.offer_id}:{}),query_status:m.item?.status??'queued',searched:searched(m.item)});
  }
  verified.sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.nights-b.nights||(a.offer.duration_minutes??Infinity)-(b.offer.duration_minutes??Infinity)||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id)||a.offer.offer_id.localeCompare(b.offer.offer_id));
- return {kind:'flexible' as const,cells,recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length},source_candidates,source:'batch_members_only' as const};
+ const reference_recommendations:{offer:Offer;nights:number;time_basis:'destination_local_assumption'}[]=[],reference_cells:{departure:string;return_date:string|null;money:Offer['money']|null}[]=[];
+ for(const m of members){
+  const valid=(m.item?.offers??[]).flatMap(offer=>{if(!referenceEligible(offer,m.planned.query,now))return [];const nights=referenceNights(offer);return nights!==null&&nights>=q.min_nights&&nights<=q.max_nights?[{offer,nights,time_basis:'destination_local_assumption' as const}]:[];}).sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id));
+  if(valid[0])reference_recommendations.push(valid[0]);
+  reference_cells.push({departure:m.planned.query.departure,return_date:m.planned.query.return_date??null,money:valid[0]?.offer.money??null});
+ }
+ reference_recommendations.sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.nights-b.nights||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id));
+ return {kind:'flexible' as const,cells,reference_cells,reference_recommendations:reference_recommendations.slice(0,5),recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length,reference_cells:reference_recommendations.length},source_candidates,source:'batch_members_only' as const};
 }

@@ -4,6 +4,8 @@ import {transaction} from './db';
 import {planBatch,liveMeetingSchema,liveFlexibleSchema,BatchPlanError,type BatchPlan,type LiveMeeting} from '../domain/batch-contracts';
 import {qualifies,stableId} from '../domain/rules';
 import type {Offer} from '../domain/contracts';
+import {referenceEligible,referenceNights} from '../domain/reference-recommendations';
+import type {ExplorationSeed} from '../domain/flexible-exploration';
 
 const period=()=>new Date().toISOString().slice(0,7);
 const keys=(owner:string,p:string)=>['spike-lifetime',`month:${p}`,`owner:${owner}:${p}`].sort();
@@ -19,13 +21,30 @@ export function validLockedA(offer:Offer,q:LiveMeeting,now=new Date()){
 export async function admitBatch(owner:string,kind:BatchPlan['kind'],input:unknown,idempotencyKey:string){return transaction('worker',null,async c=>{
  await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`batch:${owner}:${idempotencyKey}`]);
  const normalized=kind==='meeting'?liveMeetingSchema.parse(input):liveFlexibleSchema.parse(input),hash=stableId({kind,request:normalized});
- const existing=await c.query('select batch_id,request_hash,status from flight.batches where owner_id=$1 and idempotency_key=$2',[owner,idempotencyKey]);
- if(existing.rows[0]){if(existing.rows[0].request_hash!==hash)throw new BatchPlanError('IDEMPOTENCY_CONFLICT');return {...existing.rows[0],reused:true};}
+ const existing=await c.query('select batch_id,request_hash,status,request from flight.batches where owner_id=$1 and idempotency_key=$2',[owner,idempotencyKey]);
+ if(existing.rows[0]){
+  const prior=existing.rows[0],raw=input as Record<string,unknown>;
+  // Pre-strategy batches retain their original body/hash after an application upgrade.
+  let legacyHash:string|null=null;
+  if(kind==='flexible'&&!('strategy' in prior.request)&&!('max_pairs' in prior.request)&&raw.strategy===undefined&&raw.max_pairs===undefined){const {strategy:_s,max_pairs:_m,...legacy}=liveFlexibleSchema.parse(input);legacyHash=stableId({kind,request:legacy});}
+  if(prior.request_hash!==hash&&prior.request_hash!==legacyHash)throw new BatchPlanError('IDEMPOTENCY_CONFLICT');
+  return {batch_id:prior.batch_id,request_hash:prior.request_hash,status:prior.status,reused:true};
+ }
  let locked=false;
  if(kind==='meeting'){
   const q=liveMeetingSchema.parse(input);if(q.lock_a){const {rows}=await c.query('select payload from flight.offers where owner_id=$1 and offer_id=$2',[owner,q.lock_a]);if(!rows[0]||!validLockedA(rows[0].payload,q))throw new BatchPlanError('LOCK_UNAVAILABLE');locked=true;}
  }
- const plan=planBatch(kind,normalized,locked);
+ const seeds:ExplorationSeed[]=[];
+ if(kind==='flexible'){
+  const q=liveFlexibleSchema.parse(input);
+  if(q.strategy==='heuristic'){
+   // Existing-key return above freezes selection before any mutable quote lookup.
+   const filters=['origin','destination','cabin','adults','currency','carry_on','checked'] as const;
+   const saved=await c.query(`select o.payload,s.query from flight.offers o join flight.jobs j on j.owner_id=o.owner_id and j.job_id=o.job_id join flight.searches s on s.owner_id=j.owner_id and s.search_id=j.search_id where o.owner_id=$1 and s.query->>'departure' between $2 and $3 and s.query->>'return_date' between $4 and $5 and o.expires_at>now() and s.query @> $6::jsonb order by o.observed_at desc limit 500`,[owner,q.departure_from,q.departure_to,q.return_from,q.return_to,JSON.stringify(Object.fromEntries(filters.map(k=>[k,q.base[k]])))]);
+   for(const row of saved.rows){const query=row.query,nights=referenceNights(row.payload);if(filters.every(k=>query[k]===q.base[k])&&referenceEligible(row.payload,query)&&nights!==null&&nights>=q.min_nights&&nights<=q.max_nights)seeds.push({departure:query.departure,return_date:query.return_date,minor:row.payload.money.minor});}
+  }
+ }
+ const plan=planBatch(kind,normalized,locked,seeds);
  const p=period(),accountKeys=keys(owner,p);
  for(const key of accountKeys)if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,4000000,1000) on conflict do nothing',[key]);
  const accounts=await c.query('select * from flight.budget_accounts where account_key=any($1::text[]) order by account_key for update',[accountKeys]);

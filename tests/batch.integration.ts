@@ -10,6 +10,8 @@ import {parseSearch} from '../src/connectors/apify-adapter';
 import {ensureBatchWorkflow,prepareBatch,recoverStoppedChild} from '../src/server/batch-execution';
 import type {Offer} from '../src/domain/contracts';
 import {transaction,pool} from '../src/server/db';
+import {stableId} from '../src/domain/rules';
+import {liveFlexibleSchema} from '../src/domain/batch-contracts';
 process.loadEnvFile('.env');process.loadEnvFile('.env.migration');
 const url=new URL(process.env.MIGRATION_DATABASE_URL!);
 if(url.hostname!=='aws-0-ap-southeast-1.pooler.supabase.com'||decodeURIComponent(url.username)!=='postgres.fpxnoiwaytkplrfsymyp')throw Error('PROJECT_BOUNDARY');
@@ -37,6 +39,32 @@ async function cleanupBatches(){
 }
 afterEach(async()=>{vi.restoreAllMocks();await cleanupBatches();});
 afterAll(async()=>{try{await cleanupBatches();await admin.query('delete from flight.budget_accounts where account_key like $1',[`owner:${owner}:%`]);await admin.query('delete from auth.users where id=any($1::uuid[])',[[owner,other]]);}finally{await admin.end();await Promise.all([pool('api').end(),pool('worker').end()]);}});
+
+it('heuristic admission uses owned fresh seed neighbors and freezes replay before seed changes',async()=>{
+ const input={...flexible,departure_to:'2026-11-12',return_to:'2026-11-19',strategy:'heuristic',max_pairs:1};
+ const first=await admitBatch(owner,'flexible',input,randomUUID()),member=(await getBatch(owner,first.batch_id))!.items[0],query=member.query;
+ expect(query.departure).toBe('2026-11-11');expect(query.return_date).toBe('2026-11-18');
+ const id=randomUUID(),at=new Date().toISOString(),expiry=new Date(Date.now()+900000).toISOString();
+ const segment=(from:string,to:string,day:string,leg_index:number)=>({leg_index,from,to,departure_local:day+'T09:00:00',arrival_local:day+'T14:00:00',departure_utc:null,arrival_utc:null,arrival_zone:null,flight:'QA',cabin:'economy',duration:300});
+ const payload={offer_id:id,itinerary_id:id,comparison_key:null,money:{minor:10000,currency:'HKD',digits:2},complete:true,price_complete:false,quoted_adults:null,time_verified:false,source:'synthetic_test',fare_identity:null,observed_at:at,expires_at:expiry,duration_minutes:600,baggage:[],quote_evidence:{state:'source_fields_matched',display_minor:10000,exact_minor:10000},segments:[segment('HKG','NRT',query.departure,0),segment('NRT','HKG',query.return_date,1)]};
+ await admin.query('insert into flight.offers(owner_id,offer_id,job_id,itinerary_id,provider_result_key,observed_at,expires_at,payload) values($1,$2,$3,$4,$5,$6,$7,$8)',[owner,id,member.child_job_id,id,'qa-seed:0',at,expiry,payload]);
+ await cancelBatch(owner,first.batch_id);expect(await lifetime()).toBe(baseline);
+ const key=randomUUID(),second=await admitBatch(owner,'flexible',input,key),before=await getBatch(owner,second.batch_id);
+ expect(before!.plan.coverage.selection_basis).toBe('saved_quote_neighbors');expect(before!.items[0].query.departure).toBe('2026-11-10');expect(before!.items[0].query.return_date).toBe('2026-11-18');
+ expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
+ await admin.query('update flight.offers set expires_at=now()-interval \'1 second\',payload=jsonb_set(payload,\'{expires_at}\',to_jsonb((now()-interval \'1 second\')::text)) where owner_id=$1 and offer_id=$2',[owner,id]);
+ expect((await admitBatch(owner,'flexible',input,key)).batch_id).toBe(second.batch_id);expect((await getBatch(owner,second.batch_id))!.plan).toEqual(before!.plan);
+ expect(await readBatchResults(other,second.batch_id)).toBeNull();
+});
+
+it('legacy batch retry preserves pre-strategy idempotency without allowing a new strategy',async()=>{
+ const input={...flexible,departure_to:flexible.departure_from},key=randomUUID(),first=await admitBatch(owner,'flexible',input,key);
+ const {strategy:_s,max_pairs:_m,...legacy}=liveFlexibleSchema.parse(input);
+ await admin.query('update flight.batches set request=$3,request_hash=$4 where owner_id=$1 and batch_id=$2',[owner,first.batch_id,legacy,stableId({kind:'flexible',request:legacy})]);
+ expect((await admitBatch(owner,'flexible',input,key)).batch_id).toBe(first.batch_id);
+ await expect(admitBatch(owner,'flexible',{...input,strategy:'heuristic',max_pairs:1},key)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
+ expect(BigInt(await lifetime())-BigInt(baseline)).toBe(60000n);
+});
 
 it('whole admission is atomic, owner-scoped and idempotent before any provider IO',async()=>{
  const key=randomUUID(),batch=await admitBatch(owner,'meeting',meeting,key),again=await admitBatch(owner,'meeting',meeting,key);
