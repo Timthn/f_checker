@@ -19,6 +19,7 @@ it('reference mode rejects existing batch children before any supplier IO',async
  f.sql.mockResolvedValue({rows:[{...job,batch_member:true}]});
  try{await expect(flightSearch('qa-job')).rejects.toThrow('LIVE_PROVIDER_DISABLED');expect(f.start).not.toHaveBeenCalled();expect(f.reserve).not.toHaveBeenCalled();}finally{vi.unstubAllEnvs();}
 });
+it('explicit reference batch permission executes one admitted child without the full gate',async()=>{vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_BATCH_ENABLED','true');f.sql.mockResolvedValue({rows:[{...job,batch_member:true}]});f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.001});f.dataset.mockResolvedValue([{}]);try{await flightSearch('qa-job');expect(f.start).toHaveBeenCalledTimes(1);expect(f.stage).toHaveBeenCalledTimes(1);}finally{vi.unstubAllEnvs();}});
 it('reference mode permits a single discovery job without changing unknown quote qualification',async()=>{
  vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','true');
  f.sql.mockResolvedValue({rows:[{...job,batch_member:false}]});f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.001});f.dataset.mockResolvedValue([{}]);

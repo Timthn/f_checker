@@ -5,6 +5,7 @@ import {ensureBatchWorkflow} from '@/server/batch-execution';
 import {BatchPlanError,liveMeetingSchema,liveFlexibleSchema} from '@/domain/batch-contracts';
 import {flightBatch} from '@/workflows/flight-batch';
 import {start,getRun} from 'workflow/api';
+import {batchExecutionEnabled} from '@/server/execution-policy';
 export const runtime='nodejs';
 export async function POST(request:Request){
  const owner=await authenticate(request);if(!owner)return error('AUTH_REQUIRED',401);
@@ -12,7 +13,7 @@ export async function POST(request:Request){
  if(!body||!['meeting','flexible'].includes(body.kind))return error('INVALID_QUERY',422);
  const parsed=(body.kind==='meeting'?liveMeetingSchema:liveFlexibleSchema).safeParse(body.request);if(!parsed.success)return error('INVALID_QUERY',422);
  const key=request.headers.get('Idempotency-Key');if(!key||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(key))return error('IDEMPOTENCY_KEY_REQUIRED',422);
- if(process.env.LIVE_PROVIDER_ENABLED!=='true')return error('LIVE_PROVIDER_DISABLED',503);
+ if(!batchExecutionEnabled())return error('LIVE_PROVIDER_DISABLED',503);
  if(!process.env.DATABASE_URL)return error('PERSISTENCE_NOT_READY',503);
  try{
   const batch=await admitBatch(owner,body.kind,parsed.data,key);

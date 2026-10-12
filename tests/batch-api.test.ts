@@ -10,6 +10,7 @@ const query={origin:'HKG',destination:'NRT',departure:'2026-11-10',cabin:'econom
 const input={kind:'meeting',request:{a:query,b:{...query,origin:'SIN'},arrival_day:'2026-11-10',max_minutes:60,max_budget_microusd:200000,departure_scope:'fixed_departures'}};
 const request=(body:unknown=input)=>new Request('http://localhost/api/v1/batches',{method:'POST',headers:{'Idempotency-Key':'00000000-0000-4000-8000-000000000001'},body:JSON.stringify(body)});
 beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('LIVE_PROVIDER_ENABLED','true');vi.stubEnv('DATABASE_URL','QA_NOT_A_REAL_CONNECTION');f.auth.mockResolvedValue('qa-owner');f.admit.mockResolvedValue({batch_id:'qa-batch',status:'queued',reused:false});});
+it('reference batch gate admits without turning on full confirmed live mode',async()=>{vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_BATCH_ENABLED','true');vi.stubEnv('WORKER_DATABASE_URL','QA_NOT_A_REAL_CONNECTION');vi.stubEnv('APIFY_API_TOKEN','SYNTHETIC_TEST_ONLY');const response=await POST(request());expect(response.status).toBe(202);expect(f.admit).toHaveBeenCalledTimes(1);});
 afterEach(()=>vi.unstubAllEnvs());
 it('auth and live gates precede any admission or task start',async()=>{
  f.auth.mockResolvedValueOnce(null);expect((await POST(request())).status).toBe(401);vi.stubEnv('LIVE_PROVIDER_ENABLED','false');const response=await POST(request());expect((await response.json()).error.code).toBe('LIVE_PROVIDER_DISABLED');expect(f.admit).not.toHaveBeenCalled();expect(f.start).not.toHaveBeenCalled();

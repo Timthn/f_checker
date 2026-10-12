@@ -1,8 +1,9 @@
 // Candidate discovery is independently authorized from confirmed recommendations.
-// The reference switch permits individual user-triggered searches, never batches.
+// Separate reference permissions never promote source evidence to confirmed rights.
 export function searchExecutionEnabled(){
  return process.env.LIVE_PROVIDER_ENABLED==='true'||process.env.LIVE_REFERENCE_SEARCH_ENABLED==='true';
 }
 export function jobExecutionEnabled(batchMember:boolean){
- return process.env.LIVE_PROVIDER_ENABLED==='true'||(!batchMember&&process.env.LIVE_REFERENCE_SEARCH_ENABLED==='true');
+ return process.env.LIVE_PROVIDER_ENABLED==='true'||(batchMember?batchExecutionEnabled():process.env.LIVE_REFERENCE_SEARCH_ENABLED==='true');
 }
+export function batchExecutionEnabled(){return process.env.LIVE_PROVIDER_ENABLED==='true'||process.env.LIVE_REFERENCE_BATCH_ENABLED==='true';}

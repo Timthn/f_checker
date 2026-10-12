@@ -29,7 +29,7 @@ describe('bounded private Apify chain planning',()=>{
   const r=structuredClone(one.provider_response);r.itineraries[0].currency='USD';expect(planSearch(r,{...q,return_date:undefined}).offers).toHaveLength(2);
  });
  it('chooses cheapest compatible usable candidate, never cheaper wrong-currency or wrong-route',()=>{
-  const r=search();r.itineraries[0].currency='USD';r.itineraries[1].price=2000;r.itineraries[2].price=3000;expect(planSearch(r,q).next?.token).toBe('synthetic-departure-1');
+  const r=search();r.itineraries[0].currency='USD';r.itineraries[1].price=2000;r.itineraries[2].price=3000;r.itineraries.slice(1).forEach(c=>Object.assign(c,{display_price:`HK$${c.price}`,price_exact:c.price}));expect(planSearch(r,q).next?.token).toBe('synthetic-departure-1');
   r.itineraries[1].legs[0].segments[0].departure_airport='SIN';expect(planSearch(r,q).next?.token).toBe('synthetic-departure-2');
  });
  it('rejects redacted/missing tokens rather than reporting successful chain',()=>{

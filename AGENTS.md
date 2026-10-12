@@ -7,6 +7,12 @@ Current goal: actual application development (2026-10-12). Historical cycle2026-
 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
+Latest human request: implement meeting/flexible live batches. This authorizes a new single scoped continuation described in docs/plans/2026-10-12-reference-batches.md, not an automatic extra round or reset of historical counters/budgets. Prior scoped reference/signup delivery14358a3 retained. Separate reference batch gate, no confirmed-rights promotion. Stop after this scoped delivery or concrete blocker; full Goal remains incomplete.
+
+User explicitly exempts complete bill/invoice validation from current scope and prioritizes correctness of returned prices. Keep existing budget/account/free-plan protections. Source price/display/exact agreement is separately documented and must not claim independent Google/airline verification or promote party/baggage/time rights. Decision docs/decisions/0010-live-reference-batches.md; executed evidence docs/qa/reference-batches-2026-10-12.md. Current real lifetime reservationUSD0.42 ofUSD0.50, calls_reserved5, no reset/refund. New batch reference flag only, full mode stays false.
+
+Batch scope implemented/reviewed/verified: browser-safe plan preview src/domain/batch-preview.ts/tests/batch-preview.test.ts; gate src/server/execution-policy.ts; parent src/workflows/flight-batch.ts; UI src/components/live-batch-panel.tsx/batch-candidates.tsx, source quote_evidence contracts/adapter/offer-recording; explicit actual smoke tools/live-batch-smoke.cjs. Final157unit/mock,13actualDB,15mockbrowser scenarios (14/15+1/1),4actualprovider calls and clean install followed by final-source incremental rebuild/start qualified in progress. Finish scoped Git delivery then stop; historical counters/full Goal remain, no automatic continuation authorized.
+
 ## Confirmed product decisions
 - Latest personal-use amendment: prioritize a simple private dashboard and the four core flight tasks. Do not expand teams, sharing, subscriptions, admin portals or accounting features. Keep existing minimal Auth, secret protection, budget/idempotency guards and honest source evidence; fee details are collapsed by default. Avoid adding infrastructure unless required by a demonstrated failure. This does not reset budgets or the five-round counter.
 - User-facing brand is `Flight cheaker` (user-provided spelling, 2026-10-12). Repository/path remain f_checker.

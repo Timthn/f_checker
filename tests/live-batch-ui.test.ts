@@ -14,8 +14,8 @@ it('renders an explicit, disabled paid action without a nested form or hidden pa
  expect(html).toContain('type="button"');expect(html).toContain('value="0.10"');
  expect(html).toContain(en.batchBranchCoverage);expect(html).toContain(en.batchSourceGate);
 });
-it('shows meeting arrival-window coverage by default and omits it for flexible date mode',()=>{
- expect(markup('meeting','en')).toContain('value="arrival_window" selected=""');
+it('shows affordable fixed departure coverage by default and omits it for flexible date mode',()=>{
+ expect(markup('meeting','en')).toContain('value="fixed_departures" selected=""');
  expect(markup('meeting','en')).toContain(en.batchFixedDepartures);
  expect(markup('flexible','en')).not.toContain(en.batchDepartureScope);
 });

@@ -12,7 +12,7 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:3000. Recorded samples work without provider calls. Private analysis uses the designated Supabase project. The separate reference-search switch permits explicit individual queries with unknown rights; full confirmed-feature/batch execution stays disabled.
+Open http://127.0.0.1:3000. Recorded samples work without provider calls. Private analysis uses the designated Supabase project. The separate reference-search switch permits explicit individual queries with unknown rights; full confirmed-feature mode stays disabled; LIVE_REFERENCE_BATCH_ENABLED separately permits explicit meeting/flexible reference batches.
 
 Copy .env.example to ignored .env and configure public Supabase URL/publishable key plus restricted API/worker PostgreSQL URLs. Setup credentials belong only in ignored .env.migration, copied from .env.migration.example. Never put admin DB credentials or Apify token in browser variables. TLS uses config/supabase-ca.crt; do not disable certificate validation. No deployment is authorized.
 
@@ -33,9 +33,11 @@ Migration history is owned only by the local Supabase CLI; tools/supabase-cli.cj
 
 ## Personal preview
 
+For Meet together / Flexible dates, fill both travelers or both date ranges, inspect the planned query/call/ceiling preview, then press Request live batch. Fixed-departure meeting normally uses two queries; arrival-window explicitly expands coverage. Flexible search preserves every chosen date pair; an oversized full plan is rejected, never silently narrowed. Refresh only reads the original batch. Expand returned quotes to inspect source amounts, capture times and price-field agreement. One outbound branch per round-trip pair, not global coverage. Full invoice verification is outside the latest user scope; source-field agreement is not an independent Google/airline quote or booking guarantee. Current lifetime validation reservationUSD0.42/USD0.50; larger new plans are blocked unless the user authorizes a budget change.
+
 Open http://127.0.0.1:3000 while the server is running. Public recorded samples need no login and make no paid queries. Try the three entries and 中文/English controls; sample amounts are not current market prices. Source candidate disclosure is available for private saved batch results, not public sample batches.
 
-Use Sign in → No account? Create one to register your own email/password. The designated project requires email confirmation before password login. Credentials are entered directly in the browser, never sent to the coding agent. Login protects private jobs/results and query permissions. Then select Find flights, fill airport/date/cabin/adults/bags and press Search candidates. LIVE_REFERENCE_SEARCH_ENABLED=true in the ignored local environment enables individual discovery; LIVE_PROVIDER_ENABLED=false keeps batch execution gated. No booking or deployment.
+Use Sign in → No account? Create one to register your own email/password. The designated project requires email confirmation before password login. Credentials are entered directly in the browser, never sent to the coding agent. Login protects private jobs/results and query permissions. Then select Find flights, fill airport/date/cabin/adults/bags and press Search candidates. LIVE_REFERENCE_SEARCH_ENABLED=true in the ignored local environment enables individual discovery; LIVE_REFERENCE_BATCH_ENABLED=true enables explicit meeting/flexible reference batches; LIVE_PROVIDER_ENABLED=false does not promote their unknown rights. No booking or deployment.
 
 Returned quotes appear as a bounded snapshot of up to10 candidates, not confirmed cheapest fares. Party total, baggage and UTC evidence remain unverified. Read-only progress polling, details, language and chart interactions do not create paid runs. Duplicate pending clicks restore the same job; ambiguous admission retains its frozen request/key. A deliberate new query after a definitive terminal state uses a new key and may incur costs. Cancellation prevents new dispatch, but cannot undo an already billed upstream run.
 

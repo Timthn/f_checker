@@ -4,7 +4,7 @@ import { money, stableId } from '../domain/rules';
 import type { Offer, Search, CalendarCell, Segment } from '../domain/contracts';
 const segment=z.object({departure_airport:z.string(),arrival_airport:z.string(),departure_time:z.string(),arrival_time:z.string(),flight_number:z.string(),cabin_class:z.string(),duration_minutes:z.number()});
 const leg=z.object({segments:z.array(segment).min(1),duration_minutes:z.unknown().optional()});
-const candidate=z.object({legs:z.array(leg).min(1),price:z.number().nonnegative().nullable(),currency:z.string(),carry_on_bags_included:z.number().nullable().optional(),checked_bags_included:z.number().nullable().optional()});
+const candidate=z.object({legs:z.array(leg).min(1),price:z.number().nonnegative().nullable(),currency:z.string(),display_price:z.string().nullable().optional(),price_exact:z.number().nonnegative().nullable().optional(),carry_on_bags_included:z.number().nullable().optional(),checked_bags_included:z.number().nullable().optional()});
 const search=z.object({mode:z.enum(['search','return']),itineraries:z.array(candidate),scraped_at:z.iso.datetime(),trip_type:z.string().optional()});
 const booking=z.object({mode:z.literal('booking'),legs:z.array(leg).min(1),trip_type:z.string(),scraped_at:z.iso.datetime(),booking_options:z.array(z.object({price:z.number().nonnegative(),currency:z.string(),baggage_prices:z.array(z.string()).optional()}))});
 const calendar=z.object({mode:z.literal('calendar'),prices:z.array(z.object({departure_date:z.iso.date(),return_date:z.iso.date().nullable().optional(),price:z.number().nullable(),currency:z.enum(['HKD','USD','EUR','JPY']),display_price:z.string().nullable().optional(),is_priced:z.boolean()}))});
@@ -18,7 +18,9 @@ export function parseSearch(raw:unknown,query:Search):Offer[] {
   const data=search.parse(raw);
   return data.itineraries.filter((c):c is typeof c & {price:number}=>c.price!==null).map(c=>{
     const ss=segments(c.legs),id=stableId(ss.map(s=>[s.from,s.to,s.departure_local,s.arrival_local,s.flight]));
-    return {offer_id:randomUUID(),itinerary_id:id,comparison_key:null,money:money(c.price,c.currency),segments:ss,
+    const amount=money(c.price,c.currency),display=c.display_price?displayMinor(c.display_price,c.currency):null,exact=c.price_exact!=null?money(c.price_exact,c.currency).minor:null;
+    if(display!==null&&display!==amount.minor||exact!==null&&exact!==amount.minor)throw Error('PRICE_EVIDENCE_CONFLICT');
+    return {offer_id:randomUUID(),itinerary_id:id,comparison_key:null,money:amount,segments:ss,quote_evidence:{state:display!==null&&exact!==null?'source_fields_matched':'insufficient',display_minor:display,exact_minor:exact},
       // Aggregate counts have no segment/passenger scope: retained as source evidence elsewhere, never promoted to included rights.
       baggage:[],price_complete:false,quoted_adults:null,duration_minutes:elapsedDuration(c.legs),complete:!query.return_date && data.mode==='search' && c.legs.length===1,fare_identity:null,source:'apify/build0.0.2',observed_at:data.scraped_at,expires_at:new Date(Date.parse(data.scraped_at)+900000).toISOString(),time_verified:false};
   });

@@ -96,3 +96,43 @@ test('known failed and cancelled jobs allow explicit new keys while uncertain jo
  await page.locator('form.query').getByRole('button',{name:'New live search · may incur charges',exact:false}).click();await expect(page.getByText('Cancelled',{exact:true})).toBeVisible();await page.locator('form.query').getByRole('button',{name:'New live search · may incur charges',exact:false}).click();await expect(page.getByText('Needs reconciliation; no automatic retry',{exact:true})).toBeVisible();expect(new Set(keys).size).toBe(3);
  await page.locator('form.query').getByRole('button',{name:'Restore current job',exact:false}).click();await expect(page.getByText('Refreshing the existing job. No new provider query was created.',{exact:true})).toBeVisible();expect(keys).toHaveLength(3);
 });
+
+
+test('meeting live batch previews two fixed queries, guards double clicks and freezes uncertain recovery',async({page})=>{
+ const posts:{key:string|undefined;body:unknown}[]=[],batch='00000000-0000-4000-8000-000000000861';let reads=0,phase='running';
+ await page.route('**/api/v1/batches**',async r=>{
+  const path=new URL(r.request().url()).pathname;
+  if(path==='/api/v1/batches'&&r.request().method()==='POST'){
+   posts.push({key:r.request().headers()['idempotency-key'],body:r.request().postDataJSON()});await new Promise(resolve=>setTimeout(resolve,100));
+   return posts.length===1?r.fulfill({status:503,json:{error:{code:'PERSISTENCE_NOT_READY'}}}):r.fulfill({status:202,json:{batch_id:batch,status:'running'}});
+  }
+  if(path.endsWith('/cancel')){phase='uncertain';return r.fulfill({json:{cancelled:true}});}
+  reads++;
+  if(path.endsWith('/results'))return r.fulfill({json:{kind:'meeting',pairs:[],alternatives:[],source_candidates:[],coverage:{query_constraints_verified:0,searched:0,admitted:2}}});
+  return r.fulfill({json:{batch_id:batch,status:phase,ceiling_microusd:60000,items:[]}});
+ });
+ await fixedSearchAuth(page);await page.getByRole('button',{name:'Meet together',exact:true}).click();const live=page.getByRole('region',{name:'Live batch · explicit request',exact:true});
+ await expect(live.getByRole('combobox',{name:'Departure coverage',exact:true})).toHaveValue('fixed_departures');await expect(live.getByRole('region',{name:'Local plan preview · no provider request',exact:true})).toContainText('Unique queries · 2 / Maximum source calls · 2');
+ await live.getByRole('combobox',{name:'Departure coverage',exact:true}).selectOption('arrival_window');await expect(live.getByRole('button',{name:'Request live batch · may incur charges',exact:true})).toBeDisabled();await expect(live.getByText(/This complete plan exceeds/)).toBeVisible();await live.getByRole('combobox',{name:'Departure coverage',exact:true}).selectOption('fixed_departures');
+ await live.hover();await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(0);
+ await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});await expect(live.getByRole('alert')).toHaveText('No confirmed response. The original request is saved for recovery.');expect(posts).toHaveLength(1);await expect(live.getByRole('button',{name:'Revise rejected request',exact:true})).toHaveCount(0);
+ await page.getByRole('heading',{name:'Traveler A',exact:true}).locator('..').getByLabel('From',{exact:true}).fill('LHR');await live.getByRole('button',{name:'Recover identical request',exact:true}).click();await expect(live.getByRole('status')).toHaveText('Query running');expect(posts[1]).toEqual(posts[0]);
+ const before=reads;await live.getByRole('button',{name:'Refresh progress · no new query',exact:true}).click();await expect.poll(()=>reads).toBeGreaterThan(before);expect(posts).toHaveLength(2);
+ await live.getByRole('button',{name:'Resume original task',exact:true}).click();await expect.poll(()=>posts.length).toBe(3);expect(posts[2]).toEqual(posts[0]);await live.getByRole('button',{name:'Cancel',exact:true}).click();await expect(live.getByRole('status')).toHaveText('Needs reconciliation; no automatic retry');await expect(live.getByRole('button',{name:'Prepare a new query',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(live.getByText('Saved request used for safe recovery',{exact:false})).toHaveCount(0);await expect(live.getByRole('button',{name:'Request live batch · may incur charges',exact:true})).toBeDisabled();
+});
+
+test('flexible live batch retains every date pair in preview and only dispatches an explicit affordable plan',async({page})=>{
+ const posts:unknown[]=[],batch='00000000-0000-4000-8000-000000000862';
+ await page.route('**/api/v1/batches**',r=>{
+  if(r.request().method()==='POST'){posts.push(r.request().postDataJSON());return r.fulfill({status:202,json:{batch_id:batch,status:'partial'}});}
+  if(new URL(r.request().url()).pathname.endsWith('/results'))return r.fulfill({json:{kind:'flexible',recommendations:[],source_candidates:[],cells:[],coverage:{query_constraints_verified:0,searched:1,admitted:1,verified_cells:0}}});
+  return r.fulfill({json:{batch_id:batch,status:'partial',ceiling_microusd:60000,items:[]}});
+ });
+ await fixedSearchAuth(page);await page.getByRole('button',{name:'Flexible dates',exact:true}).click();const live=page.getByRole('region',{name:'Live batch · explicit request',exact:true}),preview=live.getByRole('region',{name:'Local plan preview · no provider request',exact:true});
+ await expect(preview).toContainText('Unique queries · 9 / Maximum source calls · 18');await expect(preview).toContainText('USD 0.54');await expect(live.getByRole('button',{name:'Request live batch · may incur charges',exact:true})).toBeDisabled();
+ await live.getByLabel('Whole-batch ceiling (USD)',{exact:true}).fill('0.50');await expect(preview).toContainText('Unique queries · 9');await expect(live.getByText(/no date pair is dropped/)).toBeVisible();expect(posts).toHaveLength(0);
+ await page.getByLabel('Departure window · to',{exact:true}).fill('2026-11-09');await page.getByLabel('Return window · to',{exact:true}).fill('2026-11-17');await expect(preview).toContainText('Unique queries · 1 / Maximum source calls · 2');await live.getByLabel('Whole-batch ceiling (USD)',{exact:true}).fill('0.10');
+ await live.hover();await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(0);
+ await live.getByRole('button',{name:'Request live batch · may incur charges',exact:true}).click();await expect(live.getByRole('button',{name:'Prepare a new query',exact:true})).toBeVisible();expect(posts).toHaveLength(1);expect(posts[0]).toMatchObject({kind:'flexible',request:{departure_from:'2026-11-09',departure_to:'2026-11-09',return_from:'2026-11-17',return_to:'2026-11-17',max_budget_microusd:100000}});await expect(live.getByText('No fully verified date combination.',{exact:true})).toBeVisible();
+});

@@ -1,12 +1,15 @@
-import {vi,it,expect,beforeEach} from 'vitest';
-const f=vi.hoisted(()=>({prepare:vi.fn(),ensure:vi.fn(),start:vi.fn(),sleep:vi.fn(),run:vi.fn(),recover:vi.fn()}));
-vi.mock('workflow',()=>({sleep:f.sleep,getWorkflowMetadata:()=>({workflowRunId:'qa-parent'})}));
+import {vi,it,expect,beforeEach,afterEach} from 'vitest';
+const f=vi.hoisted(()=>({prepare:vi.fn(),cancel:vi.fn(),ensure:vi.fn(),start:vi.fn(),sleep:vi.fn(),run:vi.fn(),recover:vi.fn()}));
+vi.mock('workflow',()=>({sleep:f.sleep,FatalError:class extends Error{},getWorkflowMetadata:()=>({workflowRunId:'qa-parent'})}));
 vi.mock('workflow/api',()=>({start:f.start,getRun:f.run}));
 vi.mock('../src/server/batch-execution',()=>({prepareBatch:f.prepare,recoverStoppedChild:f.recover}));
 vi.mock('../src/server/jobs',()=>({ensureWorkflow:f.ensure}));
+vi.mock('../src/server/batches',()=>({cancelBatch:f.cancel}));
 vi.mock('../src/workflows/flight-search',()=>({flightSearch:vi.fn()}));
 import {flightBatch} from '../src/workflows/flight-batch';
-beforeEach(()=>{vi.resetAllMocks();f.start.mockResolvedValue({runId:'qa-child-execution'});f.ensure.mockImplementation(async(_owner,id,launch)=>launch(id));});
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('LIVE_REFERENCE_BATCH_ENABLED','true');f.start.mockResolvedValue({runId:'qa-child-execution'});f.ensure.mockImplementation(async(_owner,id,launch)=>launch(id));});
+afterEach(()=>vi.unstubAllEnvs());
+it('disabled parent safely cancels held work without starting children',async()=>{vi.stubEnv('LIVE_REFERENCE_BATCH_ENABLED','false');vi.stubEnv('LIVE_PROVIDER_ENABLED','false');f.prepare.mockResolvedValue({done:false,owner:'qa-owner',children:['qa-child']});await flightBatch('qa-batch');expect(f.prepare).toHaveBeenCalledOnce();expect(f.cancel).toHaveBeenCalledExactlyOnceWith('qa-owner','qa-batch');expect(f.start).not.toHaveBeenCalled();expect(f.ensure).not.toHaveBeenCalled();});
 it('serializes only child IDs, then resumes the same parent until terminal evidence',async()=>{
  f.prepare.mockResolvedValueOnce({done:false,owner:'qa-owner',children:['qa-a','qa-b']}).mockResolvedValue({done:true,owner:'qa-owner',children:[]});
  expect(await flightBatch('qa-batch')).toBe('qa-batch');expect(f.start.mock.calls.map(c=>c[1])).toEqual([['qa-a'],['qa-b']]);expect(f.prepare).toHaveBeenCalledWith('qa-batch','qa-parent');expect(f.sleep).toHaveBeenCalledTimes(1);
