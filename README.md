@@ -19,7 +19,8 @@ Copy .env.example to ignored .env and configure public Supabase URL/publishable 
 ```text
 npm test
 npm run typecheck
-npx vitest run --config vitest.integration.config.ts
+npx vitest run --config vitest.integration.config.ts tests/jobs.integration.ts
+npx vitest run --config vitest.batch.config.ts
 npx vitest run --config vitest.auth.config.ts
 npm run test:e2e
 ```

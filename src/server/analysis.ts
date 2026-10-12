@@ -15,7 +15,7 @@ export async function jobResults(owner:string,id:string){return transaction('api
 export async function offerDetails(owner:string,id:string){return transaction('api',owner,async c=>{
  const {rows}=await c.query('select payload,job_id from flight.offers where owner_id=$1 and offer_id=$2',[owner,id]);if(!rows[0])return null;
  const offer:Offer=rows[0].payload;
- const {rows:obs}=offer.comparison_key?await c.query('select comparison_key,observed_at,amount_minor,currency,fresh from flight.observations where owner_id=$1 and comparison_key=$2 and observed_at>now()-interval \'30 days\'',[owner,offer.comparison_key]):{rows:[]};
+ const {rows:obs}=offer.comparison_key?await c.query('select comparison_key,observed_at,amount_minor,currency,fresh from flight.observations where owner_id=$1 and comparison_key=$2 and observed_at >= $3::timestamptz-interval \'30 days\' and observed_at < $3::timestamptz',[owner,offer.comparison_key,offer.observed_at]):{rows:[]};
  const observations:Observation[]=obs.map(r=>({...r,observed_at:r.observed_at.toISOString(),minor:Number(r.amount_minor)}));
  // Calendar is a separate provider product. Missing rows are not synthesized as cheap dates.
  const departure=offer.segments.find(s=>s.leg_index===0)?.departure_local.slice(0,10);

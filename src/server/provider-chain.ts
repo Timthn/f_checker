@@ -1,5 +1,6 @@
 import { transaction } from './db';
 import { completeCall } from './jobs';
+import {recordOffer} from './offer-recording';
 import type { Search,Offer,Segment } from '../domain/contracts';
 
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
@@ -38,7 +39,7 @@ export async function completeStage(job:Job,callId:string,offers:Offer[],reporte
   if(prior.rows.length)return;
   const ack=await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2 and job_id=$4 and lease_version=$5 and phase='running' returning call_id",[job.owner_id,callId,reported,job.job_id,job.lease_version]);
   if(ack.rows.length!==1)throw Error('RUN_ACK_CONFLICT');
-  for(let i=0;i<offers.length;i++){const o=offers[i];await c.query('insert into flight.offers(owner_id,offer_id,job_id,itinerary_id,comparison_key,provider_result_key,observed_at,expires_at,payload) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(owner_id,job_id,provider_result_key) do nothing',[job.owner_id,o.offer_id,job.job_id,o.itinerary_id,o.comparison_key,`${callId}:${i}`,o.observed_at,o.expires_at,o]);}
+  for(let i=0;i<offers.length;i++)await recordOffer(c,job.owner_id,job.job_id,`${callId}:${i}`,offers[i],job.query);
   // Keep the original chain expiry; advancing stages must not extend token lifetime.
   const earlier=await c.query('select min(r.expires_at) as until from flight.provider_references r join flight.provider_calls p using(owner_id,call_id) where p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
   const bounds=[Date.now()+900000,...offers.map(o=>Date.parse(o.expires_at)),...(earlier.rows[0]?.until?[new Date(earlier.rows[0].until).getTime()]:[])];

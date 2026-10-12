@@ -19,12 +19,14 @@ export function qualifies(offer: Offer, query: Search, now=new Date()): 'confirm
   if(outbound[0].from!==query.origin || outbound.at(-1)!.to!==query.destination || outbound[0].departure_local.slice(0,10)!==query.departure || offer.quoted_adults!==null&&offer.quoted_adults!==query.adults)return 'excluded';
   if(query.return_date && back.length && (back[0].from!==query.destination||back.at(-1)!.to!==query.origin||back[0].departure_local.slice(0,10)!==query.return_date))return 'excluded';
   if(!query.return_date && back.length)return 'excluded';
-  if(!offer.complete || !offer.price_complete || offer.quoted_adults===null || query.return_date&&!back.length || Date.parse(offer.expires_at)<=now.getTime() || Date.parse(offer.observed_at)>now.getTime() || now.getTime()-Date.parse(offer.observed_at)>86400000) return 'unknown';
+  const observed=Date.parse(offer.observed_at),expires=Date.parse(offer.expires_at);
+  if(!offer.complete || !offer.price_complete || offer.quoted_adults===null || query.return_date&&!back.length || !Number.isFinite(observed) || !Number.isFinite(expires) || !Number.isFinite(now.getTime()) || !Number.isSafeInteger(offer.money.minor) || offer.money.minor<=0 || expires<=now.getTime() || observed>now.getTime() || now.getTime()-observed>86400000) return 'unknown';
   for(let s=0;s<offer.segments.length;s++) for(let p=0;p<query.adults;p++) {
     const b=offer.baggage.find(x=>x.segment===s && x.passenger===p);
     if(!b || b.contradictory) return 'unknown';
-    if(query.carry_on>0 && (b.carry_on===null||b.carry_kg===null) || query.checked>0 && (b.checked===null||b.checked_kg===null)) return 'unknown';
-    if((b.carry_on??0)<query.carry_on || (b.checked??0)<query.checked) return 'excluded';
+    if(b.carry_on===null || b.checked===null || !Number.isSafeInteger(b.carry_on) || !Number.isSafeInteger(b.checked) || b.carry_on<0 || b.checked<0) return 'unknown';
+    if(query.carry_on>0 && (b.carry_kg===null || !Number.isFinite(b.carry_kg) || b.carry_kg<=0) || query.checked>0 && (b.checked_kg===null || !Number.isFinite(b.checked_kg) || b.checked_kg<=0)) return 'unknown';
+    if(b.carry_on<query.carry_on || b.checked<query.checked) return 'excluded';
   }
   return 'confirmed';
 }
@@ -39,31 +41,40 @@ export function localToUtc(local: string, zone: string, verifiedSemantics: boole
 }
 const median=(v:number[])=>{const a=[...v].sort((a,b)=>a-b),m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
 export function history(offer:Offer, observations:Observation[], now=new Date()) {
-  const cutoff=now.getTime()-30*86400000;
-  const eligible=observations.filter(o=>o.fresh && o.comparison_key===offer.comparison_key && o.currency===offer.money.currency && o.minor>0 && Date.parse(o.observed_at)>=cutoff && Date.parse(o.observed_at)<now.getTime());
-  const groups=new Map<string,number[]>(); for(const o of eligible){const d=o.observed_at.slice(0,10);groups.set(d,[...(groups.get(d)??[]),o.minor]);}
+  const observed=Date.parse(offer.observed_at),cutoff=observed-30*86400000;
+  const eligible=observations.filter(o=>!!offer.comparison_key && o.fresh && o.comparison_key===offer.comparison_key && o.currency===offer.money.currency && Number.isSafeInteger(o.minor) && o.minor>0 && Date.parse(o.observed_at)>=cutoff && Date.parse(o.observed_at)<observed);
+  const groups=new Map<string,number[]>(); for(const o of eligible){const d=new Date(o.observed_at).toISOString().slice(0,10);groups.set(d,[...(groups.get(d)??[]),o.minor]);}
   const points=[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([day,values])=>({day,minor:median(values)}));
   const values=points.map(p=>p.minor),baseline=values.length?median(values):null;
   const span=points.length>1?(Date.parse(points.at(-1)!.day)-Date.parse(points[0].day))/86400000:0;
   const latest=Math.max(...eligible.map(o=>Date.parse(o.observed_at)));
-  const enough=offer.complete && offer.price_complete && !!offer.comparison_key && points.length>=7 && span>=7 && now.getTime()-latest<=86400000 && Date.parse(offer.observed_at)<=now.getTime() && now.getTime()-Date.parse(offer.observed_at)<=86400000 && Date.parse(offer.expires_at)>now.getTime() && baseline!==null && baseline>0;
+  const enough=offer.complete && offer.price_complete && offer.time_verified && offer.quoted_adults!==null && !!offer.fare_identity && !!offer.comparison_key && Number.isSafeInteger(offer.money.minor) && offer.money.minor>0 && points.length>=7 && span>=7 && now.getTime()-latest<=86400000 && observed<=now.getTime() && now.getTime()-observed<=86400000 && Date.parse(offer.expires_at)>now.getTime() && baseline!==null && baseline>0;
   const delta=enough?(offer.money.minor-baseline!)/baseline!:null;
   return {points,mean:values.length?values.reduce((a,b)=>a+b,0)/values.length:null,baseline,signal:delta===null?'insufficient':delta<=-.05?'low':delta>=.05?'high':'typical',delta,version:'daily-median-30d-v1'};
 }
-export function rendezvous(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
-  const pairs:{a:Offer;b:Offer;total:number;gap:number;duration:number}[]=[];
+export type RendezvousPair={a:Offer;b:Offer;total:number;gap:number;duration:number};
+function rendezvousCandidates(a:Offer[],b:Offer[],day:string,locked:string|undefined,requirements:{a:Search;b:Search},now:Date) {
+  const pairs:RendezvousPair[]=[];
   for(const x of a) for(const y of b){
     if(qualifies(x,requirements.a,now)!=='confirmed'||qualifies(y,requirements.b,now)!=='confirmed')continue;
     const sx=x.segments.filter(s=>s.leg_index===0).at(-1),sy=y.segments.filter(s=>s.leg_index===0).at(-1);
     if(locked && x.offer_id!==locked || !x.complete || !y.complete || !x.time_verified || !y.time_verified || !sx?.arrival_utc || !sy?.arrival_utc || !sx.arrival_zone || !sy.arrival_zone || sx.to!==sy.to || x.money.currency!==y.money.currency) continue;
-    const localDay=(s:typeof sx)=>Temporal.Instant.from(s!.arrival_utc!).toZonedDateTimeISO(s!.arrival_zone!).toPlainDate().toString();
+    const localDay=(s:typeof sx)=>{try{return Temporal.Instant.from(s!.arrival_utc!).toZonedDateTimeISO(s!.arrival_zone!).toPlainDate().toString();}catch{return null;}};
     if(localDay(sx)!==day || localDay(sy)!==day) continue;
     const gap=Math.abs(Date.parse(sx.arrival_utc)-Date.parse(sy.arrival_utc))/60000;
-    if(gap>maxMinutes) continue;
-    if(x.duration_minutes===null||y.duration_minutes===null)continue;
-    pairs.push({a:x,b:y,total:x.money.minor+y.money.minor,gap,duration:x.duration_minutes+y.duration_minutes});
+    if(!Number.isFinite(gap) || x.duration_minutes===null||y.duration_minutes===null||!Number.isFinite(x.duration_minutes)||!Number.isFinite(y.duration_minutes)||x.duration_minutes<=0||y.duration_minutes<=0)continue;
+    pairs.push({a:x,b:y,total:x.money.minor+y.money.minor,gap,duration:Math.max(x.duration_minutes,y.duration_minutes)});
   }
-  return pairs.filter(p=>!pairs.some(q=>q!==p && q.total<=p.total && q.gap<=p.gap && q.duration<=p.duration && (q.total<p.total || q.gap<p.gap || q.duration<p.duration))).sort((p,q)=>p.total-q.total || p.gap-q.gap).slice(0,5);
+  return pairs;
+}
+const pairIdentity=(p:RendezvousPair,q:RendezvousPair)=>p.a.offer_id.localeCompare(q.a.offer_id)||p.b.offer_id.localeCompare(q.b.offer_id);
+export function rendezvous(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
+  const pairs=rendezvousCandidates(a,b,day,locked,requirements,now).filter(p=>p.gap<=maxMinutes);
+  return pairs.filter(p=>!pairs.some(q=>q!==p && q.total<=p.total && q.gap<=p.gap && (q.total<p.total || q.gap<p.gap))).sort((p,q)=>p.total-q.total || p.gap-q.gap || p.duration-q.duration || pairIdentity(p,q)).slice(0,5);
+}
+export function closestGapAlternatives(a:Offer[],b:Offer[],day:string,maxMinutes:number,locked:string|undefined,requirements:{a:Search;b:Search},now=new Date()) {
+  if(!Number.isFinite(maxMinutes)||maxMinutes<0)return [];
+  return rendezvousCandidates(a,b,day,locked,requirements,now).filter(p=>p.gap>maxMinutes).sort((p,q)=>p.gap-q.gap || p.total-q.total || p.duration-q.duration || pairIdentity(p,q)).slice(0,5).map(p=>({...p,reason:'arrival_gap_exceeds_limit' as const,required_max_minutes:p.gap}));
 }
 export function datePairs(from:string,to:string,returnFrom:string,returnTo:string,limit=400) {
   const expand=(a:string,b:string)=>{const ds=[];for(let d=Temporal.PlainDate.from(a);Temporal.PlainDate.compare(d,b)<=0;d=d.add({days:1})){ds.push(d.toString());if(ds.length>limit)throw Error('QUOTA');}return ds;};

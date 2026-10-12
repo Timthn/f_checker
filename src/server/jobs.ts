@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { transaction } from './db';
 import { stableId } from '../domain/rules';
 import type { Search,Offer } from '../domain/contracts';
+import {recordOffer} from './offer-recording';
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
 function validLease(value:unknown){const ms=value instanceof Date?value.getTime():typeof value==='string'?Date.parse(value):NaN;return Number.isFinite(ms)&&ms>Date.now();}
 export async function createJob(owner:string,query:Search,key:string){return transaction('api',owner,async c=>{
@@ -43,10 +44,24 @@ export async function claimJob(id:string,workflowId?:string):Promise<Job|null>{r
   return {...rows[0],query:search[0].query};
 });}
 export async function reserveCall(job:Job,operation:string,ceiling=30000){return transaction('worker',null,async c=>{
+  const member=(await c.query('select batch_id,ordinal from flight.batch_items where owner_id=$1 and child_job_id=$2',[job.owner_id,job.job_id])).rows[0];
+  if(member){const batch=(await c.query('select status,cancelled_at,expires_at,accounting_period from flight.batches where owner_id=$1 and batch_id=$2 for update',[job.owner_id,member.batch_id])).rows[0];
+   if(!batch||batch.cancelled_at||!['queued','running'].includes(batch.status))throw Error('LEASE_OR_CANCELLED');
+   if(!validLease(batch.expires_at)||batch.accounting_period!==new Date().toISOString().slice(0,7))throw Error('BATCH_BUDGET_PERIOD_EXPIRED');
+  }
   const locked=await c.query('select * from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id]);const j=locked.rows[0];
   if(!j||j.cancelled_at||j.lease_version!==job.lease_version||!validLease(j.lease_until))throw Error('LEASE_OR_CANCELLED');
   const previous=await c.query('select * from flight.provider_calls where owner_id=$1 and job_id=$2 and operation_key=$3',[job.owner_id,job.job_id,operation]);
   if(previous.rows[0])return {...previous.rows[0],reused:true};
+  if(member){
+   const slot=(await c.query('select * from flight.batch_slots where owner_id=$1 and batch_id=$2 and ordinal=$3 and operation_key=$4 for update',[job.owner_id,member.batch_id,member.ordinal,operation])).rows[0];
+   if(!slot||slot.state!=='held'||Number(slot.ceiling_microusd)!==ceiling)throw Error('BATCH_OPERATION_NOT_ADMITTED');
+   const spent=(await c.query('select coalesce(sum(ceiling_microusd),0) as n from flight.provider_calls where owner_id=$1 and job_id=$2',[job.owner_id,job.job_id])).rows[0].n;
+   if(BigInt(spent)+BigInt(ceiling)>100000n)throw Error('QUOTA_EXCEEDED');
+   const callId=randomUUID(),call=(await c.query("insert into flight.provider_calls(owner_id,job_id,call_id,operation_key,phase,ceiling_microusd,lease_version) values($1,$2,$3,$4,'reserved',$5,$6) returning *",[job.owner_id,job.job_id,callId,operation,ceiling,job.lease_version])).rows[0];
+   await c.query("update flight.batch_slots set state='transferred',call_id=$5 where owner_id=$1 and batch_id=$2 and ordinal=$3 and operation_key=$4 and state='held'",[job.owner_id,member.batch_id,member.ordinal,operation,callId]);
+   return {...call,reused:false,batch_prepaid:true};
+  }
   const period=new Date().toISOString().slice(0,7),keys=['spike-lifetime',`month:${period}`,`owner:${job.owner_id}:${period}`].sort();
   for(const key of keys){if(key!=='spike-lifetime')await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,4000000,1000) on conflict do nothing',[key]);}
   const accounts=await c.query('select * from flight.budget_accounts where account_key=any($1::text[]) order by account_key for update',[keys]);
@@ -56,8 +71,15 @@ export async function reserveCall(job:Job,operation:string,ceiling=30000){return
   const call_id=randomUUID();const {rows}=await c.query("insert into flight.provider_calls(owner_id,job_id,call_id,operation_key,phase,ceiling_microusd,lease_version) values($1,$2,$3,$4,'reserved',$5,$6) returning *",[job.owner_id,job.job_id,call_id,operation,ceiling,job.lease_version]);return {...rows[0],reused:false};
 });}
 export async function beginDispatch(job:Job,callId:string){return transaction('worker',null,async c=>{
+  const member=(await c.query('select batch_id from flight.batch_items where owner_id=$1 and child_job_id=$2',[job.owner_id,job.job_id])).rows[0];
+  if(member){const batch=(await c.query('select status,cancelled_at,expires_at,accounting_period from flight.batches where owner_id=$1 and batch_id=$2 for update',[job.owner_id,member.batch_id])).rows[0];
+   if(!batch||batch.cancelled_at||!['queued','running'].includes(batch.status))return false;
+   if(!validLease(batch.expires_at)||batch.accounting_period!==new Date().toISOString().slice(0,7))throw Error('BATCH_BUDGET_PERIOD_EXPIRED');
+  }
+  const child=(await c.query('select lease_version,lease_until,cancelled_at from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id])).rows[0];
+  if(!child||child.cancelled_at||child.lease_version!==job.lease_version||!validLease(child.lease_until))return false;
   // Commit before network IO. Replay after this transition may read/reconcile, never POST again.
-  const {rows}=await c.query("update flight.provider_calls p set phase='dispatching' from flight.jobs j where p.owner_id=j.owner_id and p.job_id=j.job_id and p.call_id=$1 and p.phase='reserved' and j.cancelled_at is null and j.lease_version=$2 and j.lease_until>now() returning p.call_id",[callId,job.lease_version]);return rows.length===1;
+  const {rows}=await c.query("update flight.provider_calls p set phase='dispatching' from flight.jobs j where p.owner_id=j.owner_id and p.job_id=j.job_id and p.call_id=$1 and p.phase='reserved' and j.cancelled_at is null and j.lease_version=$2 and j.lease_until>now() and p.owner_id=$3 and p.job_id=$4 returning p.call_id",[callId,job.lease_version,job.owner_id,job.job_id]);return rows.length===1;
 });}
 export async function saveRun(job:Job,callId:string,runId:string,datasetId:string){return transaction('worker',null,async c=>{
  // A known upstream acknowledgement must survive cancellation/lease loss. This is
@@ -75,7 +97,7 @@ export async function completeCall(job:Job,callId:string,offers:Offer[],reported
  }
  if(!validLease(lock.rows[0].lease_until))throw Error('LEASE_LOST');
  await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
- for(let i=0;i<offers.length;i++){const o=offers[i];await c.query('insert into flight.offers(owner_id,offer_id,job_id,itinerary_id,comparison_key,provider_result_key,observed_at,expires_at,payload) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(owner_id,job_id,provider_result_key) do nothing',[job.owner_id,o.offer_id,job.job_id,o.itinerary_id,o.comparison_key,`${callId}:${i}`,o.observed_at,o.expires_at,o]);}
+ for(let i=0;i<offers.length;i++)await recordOffer(c,job.owner_id,job.job_id,`${callId}:${i}`,offers[i],job.query);
  await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2",[job.owner_id,callId,reportedMicrousd]);
  await c.query("insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing",[job.owner_id,job.job_id,callId,{count:offers.length}]);
  await c.query("update flight.jobs set status='partial',phase='candidate_search',lease_until=null where owner_id=$1 and job_id=$2 and lease_version=$3",[job.owner_id,job.job_id,job.lease_version]);
