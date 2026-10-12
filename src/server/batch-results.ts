@@ -13,7 +13,7 @@ export async function readBatchResults(owner:string,id:string){return transactio
  // Bound each member independently; unrelated job rows cannot fill or alter this result set.
  const members=await c.query(`select i.ordinal,j.status,j.phase,
   (select count(*)::int from flight.offers o where o.owner_id=i.owner_id and o.job_id=i.child_job_id) as stored_count,
-  coalesce((select jsonb_agg(selected.payload) from (select o.payload from flight.offers o where o.owner_id=i.owner_id and o.job_id=i.child_job_id order by o.observed_at desc,o.offer_id limit 500) selected),'[]'::jsonb) as offers
+  coalesce((select jsonb_agg(selected.payload) from (select o.payload from flight.offers o where o.owner_id=i.owner_id and o.job_id=i.child_job_id order by o.observed_at desc,split_part(o.provider_result_key,':',1),case when split_part(o.provider_result_key,':',2) ~ '^[0-9]{1,9}$' then split_part(o.provider_result_key,':',2)::int end nulls last,o.offer_id limit 500) selected),'[]'::jsonb) as offers
   from flight.batch_items i join flight.jobs j on j.owner_id=i.owner_id and j.job_id=i.child_job_id
   where i.owner_id=$1 and i.batch_id=$2 order by i.ordinal`,[owner,id]);
  let lockedA:Offer|null=null;

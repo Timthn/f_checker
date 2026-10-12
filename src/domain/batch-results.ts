@@ -8,6 +8,21 @@ const searched=(i:BatchResultItem|undefined)=>i?.searched??false;
 // Inputs come exclusively from owner-scoped members of this batch. Cached rows are never merged.
 export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offer|null=null,now=new Date()){
  const members=plan.queries.map(q=>({planned:q,item:items.find(i=>i.ordinal===q.ordinal)}));
+ // Source order is retained: unknown quote scopes cannot be ranked as cheapest.
+ // Counts refer to compatible unique itineraries, before the display limit.
+ const source_candidates=members.map(m=>{
+  const unique=new Map<string,Offer>();
+  for(const o of m.item?.offers??[]){
+   const outbound=o.segments.filter(s=>s.leg_index===0);
+   const legs=[outbound,o.segments.filter(s=>s.leg_index===1)];
+   const digits=new Intl.NumberFormat('en',{style:'currency',currency:m.planned.query.currency}).resolvedOptions().maximumFractionDigits??2;
+   if(!outbound.length||!o.itinerary_id||!Number.isSafeInteger(o.money.minor)||o.money.minor<=0||o.money.digits!==digits||o.segments.some(s=>s.leg_index!==0&&s.leg_index!==1)||legs.some(ss=>ss.some((s,i)=>i>0&&ss[i-1].to!==s.from))||qualifies(o,m.planned.query,now)==='excluded')continue;
+   const prior=unique.get(o.itinerary_id);
+   if(!prior||o.complete&&!prior.complete)unique.set(o.itinerary_id,o);
+  }
+  const candidates=[...unique.values()];
+  return {ordinal:m.planned.ordinal,participants:m.planned.participants,query:m.planned.query,offers:candidates.slice(0,10),returned_count:candidates.length,omitted_count:Math.max(0,candidates.length-10)};
+ });
  const coverage={...plan.coverage,admitted:members.length,searched:members.filter(m=>searched(m.item)).length,complete_quotes:members.filter(m=>m.item?.offers.some(o=>o.complete&&o.price_complete)).length,query_constraints_verified:members.filter(m=>m.item?.offers.some(o=>qualifies(o,m.planned.query,now)==='confirmed')).length};
  if(plan.kind==='meeting'){
   const q=plan.request as LiveMeeting;
@@ -31,7 +46,7 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   const distinct=<T extends {a:Offer;b:Offer}>(ps:T[])=>[...new Map(ps.map(p=>[`${p.a.offer_id}/${p.b.offer_id}`,p])).values()];
   const candidates=distinct(pairs),identity=(p:typeof candidates[number],r:typeof candidates[number])=>p.a.offer_id.localeCompare(r.a.offer_id)||p.b.offer_id.localeCompare(r.b.offer_id);
   const best=rendezvousFrontier(candidates);
-  return {kind:'meeting' as const,pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source:'batch_members_only' as const};
+  return {kind:'meeting' as const,pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
  }
  const q=plan.request as LiveFlexible,cells:(CalendarCell&{query_status:string;searched:boolean})[]=[],verified:{offer:Offer;nights:number}[]=[];
  for(const m of members){
@@ -49,5 +64,5 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   cells.push({departure:m.planned.query.departure,return_date:m.planned.query.return_date??null,state:best?'verified':m.item?.status==='failed'?'failed':'unknown',money:best?.offer.money??null,...(best?{offer_id:best.offer.offer_id}:{}),query_status:m.item?.status??'queued',searched:searched(m.item)});
  }
  verified.sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.nights-b.nights||(a.offer.duration_minutes??Infinity)-(b.offer.duration_minutes??Infinity)||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id)||a.offer.offer_id.localeCompare(b.offer.offer_id));
- return {kind:'flexible' as const,cells,recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length},source:'batch_members_only' as const};
+ return {kind:'flexible' as const,cells,recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length},source_candidates,source:'batch_members_only' as const};
 }

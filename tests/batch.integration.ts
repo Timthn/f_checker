@@ -6,6 +6,7 @@ import {admitBatch,cancelBatch,getBatch} from '../src/server/batches';
 import {claimJob,reserveCall,beginDispatch,createJob,cancelJob,failJob} from '../src/server/jobs';
 import {recordOffer} from '../src/server/offer-recording';
 import {readBatchResults} from '../src/server/batch-results';
+import {parseSearch} from '../src/connectors/apify-adapter';
 import {ensureBatchWorkflow,prepareBatch,recoverStoppedChild} from '../src/server/batch-execution';
 import type {Offer} from '../src/domain/contracts';
 import {transaction,pool} from '../src/server/db';
@@ -49,6 +50,15 @@ it('reads only this batch members through the restricted API role',async()=>{
  const batch=await admitBatch(owner,'flexible',flexible,randomUUID());
  const result=await readBatchResults(owner,batch.batch_id);expect(result).toMatchObject({kind:'flexible',source:'batch_members_only',paid_requests:0,coverage:{admitted:2,searched:0,verified_cells:0},result_coverage:{omitted_offers:0}});
  expect(result?.kind==='flexible'?result.cells.map(c=>c.query_status):null).toEqual(['queued','queued']);
+ const member=(await getBatch(owner,batch.batch_id))!.items[0],at=new Date().toISOString();
+ const raw=JSON.parse(readFileSync('docs/connectors/fixtures/apify-build-0.0.2/round-trip-search.json','utf8')).provider_response;
+ const sample=parseSearch(raw,member.query)[0];
+ for(const [index,id] of [[0,'00000000-0000-4000-8000-000000000999'],[1,'00000000-0000-4000-8000-000000000111'],[10,'00000000-0000-4000-8000-000000000222']] as const){
+  const value={...sample,offer_id:id,itinerary_id:`qa-order-${index}`,observed_at:at,expires_at:new Date(Date.now()+900000).toISOString()};
+  await admin.query('insert into flight.offers(owner_id,offer_id,job_id,itinerary_id,provider_result_key,observed_at,expires_at,payload) values($1,$2,$3,$4,$5,$6,$7,$8)',[owner,id,member.child_job_id,value.itinerary_id,`00000000-0000-4000-8000-000000000777:${index}`,at,value.expires_at,value]);
+ }
+ const candidates=await readBatchResults(owner,batch.batch_id);expect(candidates?.source_candidates[0].offers.map(o=>o.itinerary_id)).toEqual(['qa-order-0','qa-order-1','qa-order-10']);
+ expect(candidates?.kind==='flexible'?candidates.recommendations:undefined).toEqual([]);
  expect(await readBatchResults(other,batch.batch_id)).toBeNull();expect(await readBatchResults(owner,randomUUID())).toBeNull();
  expect(BigInt(await lifetime())-BigInt(baseline)).toBe(120000n);
 });

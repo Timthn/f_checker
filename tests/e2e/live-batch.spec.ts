@@ -19,7 +19,7 @@ test('meeting explicit admission preserves ambiguous request, resumes original t
   }
   if(path.endsWith('/cancel')){cancels++;cancelled=true;return r.fulfill({json:{cancelled:true}});}
   reads++;
-  if(path.endsWith('/results'))return r.fulfill({json:{kind:'meeting',pairs:[],alternatives:[],coverage:{query_constraints_verified:0,searched:1,admitted:2}}});
+  if(path.endsWith('/results'))return r.fulfill({json:{kind:'meeting',pairs:[],alternatives:[],source_candidates:[{ordinal:0,participants:['a'],query:{origin:'HKG',destination:'NRT',departure:'2026-11-10'},returned_count:1,omitted_count:0,offers:[{offer_id:'qa-unverified',observed_at:'2026-10-01T00:00:00Z',expires_at:'2026-10-01T00:15:00Z',complete:true,money:{minor:98900,currency:'HKD',digits:2},segments:[{flight:'QA UNVERIFIED CANDIDATE',departure_local:'2026-11-10T09:00:00'}]}]}],coverage:{query_constraints_verified:0,searched:1,admitted:2}}});
   return r.fulfill({json:{batch_id:batchId,status:cancelled?'cancelled':'running',ceiling_microusd:120000,items:[{ordinal:0,status:cancelled?'cancelled':'running',phase:'search',query:{origin:'HKG',destination:'NRT',departure:'2026-11-10'}}]}});
  });
  await signIn(page);await page.getByRole('button',{name:'Meet together',exact:true}).click();
@@ -31,6 +31,7 @@ test('meeting explicit admission preserves ambiguous request, resumes original t
  await page.getByRole('heading',{name:'Traveler A',exact:true}).locator('..').getByLabel('From',{exact:true}).fill('LHR');
  await live.getByRole('button',{name:'Recover identical request',exact:true}).click();await expect(live.getByText('Query running',{exact:true}).first()).toBeVisible();
  expect(posts).toHaveLength(2);expect(posts[1]).toEqual(posts[0]);expect((posts[1].body as {request:{a:{origin:string};max_budget_microusd:number;departure_scope:string}}).request).toMatchObject({a:{origin:'HKG'},max_budget_microusd:120000,departure_scope:'fixed_departures'});
+ const candidates=live.locator('details').filter({has:page.getByText('View returned quotes · unverified',{exact:true})});await expect(candidates).not.toHaveAttribute('open');await candidates.locator('summary').click();await expect(candidates.locator('.fare-row').filter({hasText:'QA UNVERIFIED CANDIDATE'})).toBeVisible();await expect(candidates.getByText(/these are not confirmed recommendations/)).toBeVisible();await expect(candidates.getByText(/Saved quote expired/)).toBeVisible();await candidates.locator('summary').click();await candidates.locator('summary').click();await expect(candidates.getByText(/Saved quote expired/)).toBeVisible();expect(posts).toHaveLength(2);
  const readBefore=reads;await live.getByRole('button',{name:'Refresh progress · no new query',exact:true}).click();await expect.poll(()=>reads).toBeGreaterThan(readBefore);expect(posts).toHaveLength(2);
  await live.getByRole('button',{name:'Resume original task',exact:true}).click();await expect.poll(()=>posts.length).toBe(3);expect(posts[2]).toEqual(posts[0]);
  await live.getByRole('button',{name:'Cancel',exact:true}).click();await expect.poll(()=>cancels).toBe(1);await expect(live.getByRole('status')).toHaveText('Cancelled');

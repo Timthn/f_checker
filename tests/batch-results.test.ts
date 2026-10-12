@@ -52,3 +52,22 @@ it('keeps searched evidence after suspension and names quote-only constraints se
  const r=batchResults(p,[{ordinal:0,status:'partial',phase:'needs_attention',searched:true,offers:[o]}],null,now);
  if(r.kind!=='flexible')throw Error();expect(r.coverage).toMatchObject({searched:1,query_constraints_verified:1,verified_cells:0});expect(r.cells[0].state).toBe('unknown');
 });
+it('retains unverified member candidates independently of confirmed meeting recommendations',()=>{
+ const p=planBatch('meeting',{...meeting,departure_scope:'fixed_departures'});
+ const unknown={...offer(p.queries[0].query,'unknown'),price_complete:false,time_verified:false,quoted_adults:null,baggage:[]};
+ const r=batchResults(p,[{ordinal:0,status:'partial',phase:'search',offers:[unknown]},{ordinal:99,status:'partial',phase:'search',offers:[offer(base,'unrelated')]}],null,now);
+ if(r.kind!=='meeting')throw Error();expect(r.pairs).toEqual([]);expect(r.source_candidates[0].offers.map(o=>o.offer_id)).toEqual(['unknown']);expect(r.source_candidates.flatMap(g=>g.offers).some(o=>o.offer_id==='unrelated')).toBe(false);
+});
+it('source candidates validate route/currency/money/outbound context without promoting unknown flexible cells',()=>{
+ const p=planBatch('flexible',{base,departure_from:base.departure,departure_to:base.departure,return_from:'2026-11-17',return_to:'2026-11-17',min_nights:0,max_nights:10});
+ const good={...offer(p.queries[0].query,'unknown'),price_complete:false,time_verified:false};
+ const bad=[{...good,offer_id:'foreign',money:{...good.money,currency:'USD'}},{...good,offer_id:'zero',money:{...good.money,minor:0}},{...good,offer_id:'empty',segments:[]},{...good,offer_id:'route',segments:good.segments.map(s=>({...s,from:'SIN'}))},{...good,offer_id:'digits',money:{...good.money,digits:0}}];
+ const r=batchResults(p,[{ordinal:0,status:'partial',phase:'return',offers:[good,...bad]}],null,now);if(r.kind!=='flexible')throw Error();expect(r.recommendations).toEqual([]);expect(r.cells[0].state).toBe('unknown');expect(r.source_candidates[0].offers.map(o=>o.offer_id)).toEqual(['unknown']);
+});
+it('limits source candidates to ten, deduplicates itinerary and preserves source order over price',()=>{
+ const p=planBatch('meeting',{...meeting,departure_scope:'fixed_departures'});
+ const offers=Array.from({length:12},(_,i)=>({...offer(base,String(i)),money:{minor:12000-i*100,currency:'HKD',digits:2},price_complete:false}));
+ const partial={...offers[0],offer_id:'partial',complete:false},replacement={...offers[0],offer_id:'structural',complete:true};
+ const r=batchResults(p,[{ordinal:0,status:'partial',phase:'search',offers:[partial,...offers.slice(1),replacement]}],null,now);
+ expect(r.source_candidates[0]).toMatchObject({returned_count:12,omitted_count:2});expect(r.source_candidates[0].offers.map(o=>o.offer_id)).toEqual(['structural','1','2','3','4','5','6','7','8','9']);
+});
