@@ -3,7 +3,7 @@
 ## Scope and authority
 Only work in `C:/Users/Tim Ngan/Desktop/projects/f_checker` and only commit/push to `https://github.com/Timthn/f_checker` (SSH equivalent permitted). Before any Git write, verify root, branch and origin. Never change other repositories. Deletes must resolve inside this project; preserve user work. No core OS/global dependency changes, purchases, ticket issuance or deployment.
 
-Current goal: actual application development (2026-10-12). User authorized resumption and extended the cumulative round limit to10 on2026-10-12. Completed count10 is preserved. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
+Current goal: actual application development (2026-10-12). User explicitly requested round-counter reset with limit5 on2026-10-12: start continuation cycle2026-10-12-live-batch-02 at0/5. Previous10 completed rounds remain historical and are not deleted. Original budget and all other boundaries remain unchanged. Unknown provider capabilities stay `pending_live_validation`; no deployment authorized. Prior stop remains documented in docs/errors/2026-10-12-goal-round-limit.md.
 
 Roles: product/UIUX designer, solution architect, full-stack developer, QA. Independent sub-agent spec review is authorized; assign non-overlapping files for future parallel work.
 
@@ -12,7 +12,7 @@ Roles: product/UIUX designer, solution architect, full-stack developer, QA. Inde
 - Four features: top-ten filtered offers, two price views with signal, split-screen rendezvous, flexible departure/return ranges.
 - Economy and business; baggage includes carry-on versus checked, not a single ambiguous yes/no flag.
 - User confirmed both same-trip observed price history and neighboring travel-date prices as separate views.
-- 2026-10-12 user accepts provider route/search history for first-release reference charts/signals, separately labeled 航线价格历史 / Route price history. User then requests continuation prioritizing live meeting/flexible batch queries, comparable quote recording and full cost reconciliation. Plan: docs/plans/2026-10-12-live-batch-continuation.md. Completed count10/budget remain; round extension pending.
+- 2026-10-12 user accepts provider route/search history for first-release reference charts/signals, separately labeled 航线价格历史 / Route price history. User then requests continuation prioritizing live meeting/flexible batch queries, comparable quote recording and full cost reconciliation. Plan: docs/plans/2026-10-12-live-batch-continuation.md. New user-authorized cycle0/5; historical10 and budget retained.
 - Unknown baggage is not zero/free. Provider search-level history is not flight-specific history.
 - Never claim global cheapest, fabricated history or real validation based on demo data.
 
@@ -53,7 +53,7 @@ Current runnable application is Next.js/TypeScript in src; docs/design/prototype
 ## Harness and stop rules
 Record material decisions and index them here. Update progress on each stage, record evidence and next steps. Secrets in backend environment only; `.env.example` contains placeholders; never commit `.env`, credentials or replayable provider tokens. Snapshot and browser QA allowed.
 Current application completion requires unit/integration/critical-flow checks, clean isolated install/start, progress update and verified push to this repo. Earlier preflight completion does not satisfy this application Goal.
-Stop affected retries if the same test fails three consecutive times without identified cause, or more than ten goal-wide implementation/verification/independent-review rounds occur without meeting success conditions (including partially successful rounds; record the count in progress). User extended the original five-round limit to10 on2026-10-12; count6 and original budget are retained. Write `docs/errors/YYYY-MM-DD-topic.md`, preserve work, update progress. Never weaken tests or reset counters by renaming them.
+Stop affected retries if the same test fails three consecutive times without identified cause, or the current user-authorized development cycle reaches five implementation/verification/independent-review rounds without meeting success conditions (including partially successful rounds; record the count in progress). User explicitly reset the active counter on2026-10-12; earlier5/10 limits and completed10 remain historical, original budget retained. Write `docs/errors/YYYY-MM-DD-topic.md`, preserve work, update progress. Never weaken tests or reset counters by renaming them; no automatic sixth round or reset.
 
 ## Instruction isolation
 This file applies within this repository only. No existing AGENTS.md/CLAUDE.md was replaced. Checked ancestor paths contained no such files at creation. System/developer and user instructions still apply; this file does not override them. Newly discovered ancestor instructions must be reported, not silently ignored.
@@ -62,8 +62,8 @@ This file applies within this repository only. No existing AGENTS.md/CLAUDE.md w
 ## Actual development index
 - Plan: docs/plans/2026-10-12-development.md
 - Runtime: bundled Node24.19.0; dependencies installed only locally with lockfile after engine verification.
-- Goal-wide completed implementation/verification/review rounds:10. User authorized resumption with cumulative limit10; Goal not complete.
-- Round10 local critical-flow verification passed; full Goal incomplete. No automatic round11. Acceptance checkpoint: docs/errors/2026-10-12-round10-acceptance-gates.md. No new live provider calls.
+- Current continuation cycle2026-10-12-live-batch-02: completed0/5. Historical completed rounds10 retained. User explicitly authorized this counter reset; Goal not complete.
+- Previous round10 local critical-flow checks passed; its stop is historical after explicit user reset. Current priorities: live meeting/flexible batch execution, comparable history and full billing reconciliation. Acceptance checkpoint: docs/errors/2026-10-12-round10-acceptance-gates.md. No new live provider calls.
 - Local recovery/account guard: src/instrumentation.ts, src/connectors/apify-account.ts, src/server/provider-allowance.ts; docs/decisions/0003-local-workflow-and-free-account.md
 - Real Auth/API tests: tests/auth.integration.ts, vitest.auth.config.ts; actual SDK fixture-IO restart harness: tools/workflow-recovery.cjs. Qualify original verifier failure and preserved-record offline correction separately.
 - Current architecture and pending gates: docs/architecture/application-status.md
