@@ -7,10 +7,11 @@ export async function cachedOffers(owner:string,query:Search):Promise<Offer[]>{r
  return rows.map(r=>r.payload);
 });}
 export async function jobResults(owner:string,id:string){return transaction('api',owner,async c=>{
- const {rows}=await c.query('select j.status,s.query from flight.jobs j join flight.searches s using(owner_id,search_id) where j.owner_id=$1 and j.job_id=$2',[owner,id]);if(!rows[0])return null;
- const {rows:offers}=await c.query('select payload from flight.offers where owner_id=$1 and job_id=$2 order by observed_at desc limit 500',[owner,id]);
+ const {rows}=await c.query('select j.status,j.safe_error,s.query from flight.jobs j join flight.searches s using(owner_id,search_id) where j.owner_id=$1 and j.job_id=$2',[owner,id]);if(!rows[0])return null;
+ const {rows:offers}=await c.query("select payload from flight.offers where owner_id=$1 and job_id=$2 order by observed_at desc, split_part(provider_result_key,':',1),case when split_part(provider_result_key,':',2) ~ '^[0-9]{1,9}$' then split_part(provider_result_key,':',2)::int end nulls last,offer_id limit 500",[owner,id]);
  const candidates:Offer[]=offers.map(r=>r.payload),ranked=rank(candidates,rows[0].query);
- return {job_id:id,status:rows[0].status,query:rows[0].query,...ranked,source_count:candidates.length,coverage:'returned_candidates_only'};
+ const safeCodes=['QUOTA_EXCEEDED','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED','DISPATCH_UNCERTAIN','READ_RECONCILE_REQUIRED','DATASET_RECONCILE_REQUIRED','PROVIDER_UNAVAILABLE','LIVE_PROVIDER_DISABLED','PROVIDER_REFERENCE_EXPIRED'];
+ return {job_id:id,status:rows[0].status,safe_error:safeCodes.includes(rows[0].safe_error)?rows[0].safe_error:null,query:rows[0].query,...ranked,source_count:candidates.length,coverage:'returned_candidates_only'};
 });}
 export async function offerDetails(owner:string,id:string){return transaction('api',owner,async c=>{
  const {rows}=await c.query('select payload,job_id from flight.offers where owner_id=$1 and offer_id=$2',[owner,id]);if(!rows[0])return null;

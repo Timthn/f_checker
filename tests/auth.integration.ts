@@ -52,7 +52,12 @@ afterAll(async()=>{
 
 it('real signed Auth reaches validation/live gate and forged identity is rejected',async()=>{
  expect((await call('/api/v1/searches',0,null)).status).toBe(422);
- const gate=await call('/api/v1/searches',0,query);expect(gate.status).toBe(503);expect((await gate.json()).error.code).toBe('PERSISTENCE_NOT_READY');
+ // No idempotency key: this validation probe must never create a paid job,
+ // including when explicitly authorized reference discovery is enabled.
+ const capabilities=await fetch(base+'/api/v1/capabilities').then(r=>r.json());
+ const gate=await call('/api/v1/searches',0,query);
+ if(capabilities.reference_search_enabled||capabilities.live_enabled){expect(gate.status).toBe(422);expect((await gate.json()).error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');}
+ else{expect(gate.status).toBe(503);expect((await gate.json()).error.code).toBe('PERSISTENCE_NOT_READY');}
  const forged=await fetch(`${base}/api/v1/jobs/${jobs[0]}/results`,{headers:{Authorization:'Bearer invalid.synthetic.jwt'},signal:AbortSignal.timeout(30000)});expect(forged.status).toBe(401);
 });
 it('owner sees real API results/history; other authenticated owner cannot see them',async()=>{
@@ -88,6 +93,9 @@ it('browser password login restores private quotes/details and logout removes pr
   await browserExpect(current).toHaveCount(1);await current.click();
   await browserExpect(page.getByRole('heading',{name:'Flight details',exact:true})).toBeVisible({timeout:15000});
   await browserExpect(page.locator('.notice')).toContainText('Private saved quotes');
+  // Route reference is now the default chart. Select the distinct comparable
+  // history view before asserting its locally calculated Signal.
+  await page.getByRole('button',{name:'Same-trip observed history',exact:true}).click();
   await browserExpect(page.locator('.detail-bands')).toContainText('Below baseline');
   await page.getByRole('button',{name:'切换中文',exact:true}).click();
   await browserExpect(page.getByRole('heading',{name:'航班详情',exact:true})).toBeVisible();

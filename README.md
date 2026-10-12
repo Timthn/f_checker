@@ -12,7 +12,7 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:3000. The recorded-sample preview works without provider calls. Authenticated cached analysis uses the designated Supabase project. Live provider execution remains disabled while cost/source/workflow gates are incomplete.
+Open http://127.0.0.1:3000. Recorded samples work without provider calls. Private analysis uses the designated Supabase project. The separate reference-search switch permits explicit individual queries with unknown rights; full confirmed-feature/batch execution stays disabled.
 
 Copy .env.example to ignored .env and configure public Supabase URL/publishable key plus restricted API/worker PostgreSQL URLs. Setup credentials belong only in ignored .env.migration, copied from .env.migration.example. Never put admin DB credentials or Apify token in browser variables. TLS uses config/supabase-ca.crt; do not disable certificate validation. No deployment is authorized.
 
@@ -35,8 +35,12 @@ Migration history is owned only by the local Supabase CLI; tools/supabase-cli.cj
 
 Open http://127.0.0.1:3000 while the server is running. Public recorded samples need no login and make no paid queries. Try the three entries and 中文/English controls; sample amounts are not current market prices. Source candidate disclosure is available for private saved batch results, not public sample batches.
 
-Login protects private jobs/results and paid-query permissions. There is no public signup flow; an account must exist in the designated Supabase Authentication users for email/password login. Login does not enable live execution, which remains disabled. No booking or deployment.
+Use Sign in → No account? Create one to register your own email/password. The designated project requires email confirmation before password login. Credentials are entered directly in the browser, never sent to the coding agent. Login protects private jobs/results and query permissions. Then select Find flights, fill airport/date/cabin/adults/bags and press Search candidates. LIVE_REFERENCE_SEARCH_ENABLED=true in the ignored local environment enables individual discovery; LIVE_PROVIDER_ENABLED=false keeps batch execution gated. No booking or deployment.
 
-Current live fares, baggage and UTC evidence cannot establish confirmed recommendations. Full acceptance remains incomplete; cycle03 stopped5/5. See docs/qa/application-acceptance-2026-10-12.md and the stop log. Human continuation is required before more automatic development.
+Returned quotes appear as a bounded snapshot of up to10 candidates, not confirmed cheapest fares. Party total, baggage and UTC evidence remain unverified. Read-only progress polling, details, language and chart interactions do not create paid runs. Duplicate pending clicks restore the same job; ambiguous admission retains its frozen request/key. A deliberate new query after a definitive terminal state uses a new key and may incur costs. Cancellation prevents new dispatch, but cannot undo an already billed upstream run.
+
+Full original acceptance remains incomplete; historical cycle03 stopped5/5. User explicitly authorized this one scoped live-reference/signup continuation without resetting previous counters or budgets. See docs/decisions/0009-user-triggered-reference-search.md. The old8765/8766 prototype is a design reference; use the3000 application for actual queries.
 
 History/billing DB tests use `npx vitest run --config vitest.evidence.config.ts`. Batch restart harness: `node tools/batch-workflow-recovery.cjs`, actual SDK with synthetic supplier IO and temporary QA rows. Run DB suites serially. Its recorded isolated120s lease pass is not proof of production860s or live supplier recovery.
+
+Explicit live smoke: `FC_EXPLICIT_LIVE_CHECK=1 node tools/live-reference-smoke.cjs` (set the environment flag in the shell first on Windows). This is a paid, bounded one-way verification, not an automatic test. It preserves an ignored secret QA state, recovers only its existing job after interruption and retains real reservations/evidence. Never delete its state to force another run or refund it as synthetic. Normal tests do not invoke Apify.

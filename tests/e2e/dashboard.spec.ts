@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,type Page} from '@playwright/test';
 test('bilingual production cockpit preserves data without paid queries',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));const paid:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/v1/searches'))paid.push(r.url());});
  await page.goto('/');await expect(page.locator('.brand')).toContainText('Flight cheaker');await expect(page.locator('.entry')).toHaveCount(3);
@@ -50,4 +50,49 @@ test('synthetic authenticated cache uses captured evidence and clears private co
  await page.getByRole('button',{name:'Meet together',exact:true}).click();await page.getByRole('combobox',{name:'Currency',exact:true}).selectOption('JPY');await page.getByRole('button',{name:'Analyze saved quotes',exact:true}).click();await expect(page.locator('.meeting .fare-row')).toHaveCount(1);
  const amount=await page.locator('.meeting .fare-row strong').textContent();await page.getByRole('combobox',{name:'Currency',exact:true}).selectOption('HKD');await expect(page.locator('.meeting .fare-row strong')).toHaveText(amount!);
  await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(page.getByRole('button',{name:'Sign in',exact:true})).toBeVisible();await expect(page.getByText('QA PRIVATE A',{exact:true})).toHaveCount(0);await expect(page.locator('.meeting .fare-row')).toHaveCount(0);
+});
+
+async function fixedSearchAuth(page:Page){
+ const owner='00000000-0000-4000-8000-000000000801';
+ const jwt=`${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:owner,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.QAFakeSignature`;
+ const user={id:owner,aud:'authenticated',role:'authenticated',email:'fixed-qa@example.invalid',app_metadata:{provider:'email',providers:['email']},user_metadata:{},created_at:new Date().toISOString()};
+ await page.route('**/auth/v1/token**',r=>r.fulfill({json:{access_token:jwt,refresh_token:'QA_SYNTHETIC_REFRESH',expires_in:3600,token_type:'bearer',user}}));
+ await page.route('**/auth/v1/user**',r=>r.fulfill({json:user}));await page.route('**/auth/v1/logout**',r=>r.fulfill({status:204}));
+ await page.goto('/');await page.getByRole('button',{name:'Switch to English',exact:true}).click();await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByLabel('Email',{exact:true}).fill('fixed-qa@example.invalid');await page.getByLabel('Password',{exact:true}).fill('synthetic-not-a-real-password');await page.locator('form.auth').getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.getByRole('button',{name:'Sign out',exact:true})).toBeVisible();await page.getByRole('button',{name:'Find flights',exact:true}).click();
+}
+function fixedReferenceOffer(index=0){return {offer_id:`00000000-0000-4000-8000-${String(900+index).padStart(12,'0')}`,itinerary_id:`synthetic-ref-${index}`,comparison_key:null,money:{minor:10000+index*100,currency:'HKD',digits:2},segments:[{leg_index:0,from:'HKG',to:'NRT',departure_local:'2026-11-10T09:00:00',arrival_local:'2026-11-10T14:00:00',departure_utc:null,arrival_utc:null,arrival_zone:null,flight:`QA LIVE REF ${index}`,cabin:'economy',duration:240}],baggage:[],complete:true,price_complete:false,quoted_adults:null,duration_minutes:240,fare_identity:null,source:'synthetic_ui_test_only',observed_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString(),time_verified:false};}
+test('fixed-date live candidates replace sample dashboard, cap at ten and explicit repeat creates a new key',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));const posts:{key:string|undefined;body:unknown}[]=[],job='00000000-0000-4000-8000-000000000811',job2='00000000-0000-4000-8000-000000000812';
+ const offers=Array.from({length:12},(_,i)=>fixedReferenceOffer(i));
+ await page.route('**/api/v1/searches',async r=>{posts.push({key:r.request().headers()['idempotency-key'],body:r.request().postDataJSON()});await new Promise(resolve=>setTimeout(resolve,150));return r.fulfill({status:202,json:{job_id:posts.length===1?job:job2,status:'queued'}});});
+ await page.route('**/api/v1/jobs/*/results',r=>r.fulfill({json:{status:'partial',source_count:19,confirmed:[],unknown:offers,query:{origin:'HKG',destination:'NRT',departure:'2026-11-10',cabin:'economy',adults:1,currency:'HKD',carry_on:0,checked:0}}}));
+ await page.route(`**/api/v1/offers/${offers[0].offer_id}`,r=>r.fulfill({json:{offer:offers[0],route_history:null,history:{points:[],mean:null,signal:'insufficient'},date_prices:[]}}));
+ await fixedSearchAuth(page);await page.getByRole('button',{name:'Preview recorded samples',exact:true}).click();await expect(page.locator('.fare-row')).toHaveCount(3);
+ await page.getByRole('button',{name:'Search candidates',exact:false}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});await expect(page.locator('.fare-list .fare-row')).toHaveCount(10);expect(posts).toHaveLength(1);await expect(page.locator('.dominant .fare-hero strong')).toHaveText(/100/);await expect(page.locator('.dominant .badge')).toHaveText('Unknown');await expect(page.locator('.dashboard .metric').first()).toContainText('10 / 19');await expect(page.getByText(/Recorded HKG → NRT, 10 Nov/)).toHaveCount(0);
+ await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.locator('.dominant').hover();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(1);
+ await page.locator('.fare-list .fare-row').first().click();await expect(page.locator('.detail-bands .fare-hero strong')).toHaveText(/100/);await expect(page.getByText(/Quote scope unverified · synthetic_ui_test_only/)).toBeVisible();
+ await page.getByRole('button',{name:'← Back to results',exact:true}).click();await page.getByRole('button',{name:'New live search · may incur charges',exact:false}).click();await expect.poll(()=>posts.length).toBe(2);expect(posts[1].key).not.toBe(posts[0].key);
+ await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(page.locator('.fare-row').filter({hasText:'QA LIVE REF'})).toHaveCount(0);expect(errors).toEqual([]);
+});
+test('ambiguous fixed-date admission retains frozen payload and key even after fields change',async({page})=>{
+ const posts:{key:string|undefined;body:unknown}[]=[],job='00000000-0000-4000-8000-000000000821';
+ await page.route('**/api/v1/searches',r=>{posts.push({key:r.request().headers()['idempotency-key'],body:r.request().postDataJSON()});return posts.length===1?r.fulfill({status:503,json:{error:{code:'PERSISTENCE_NOT_READY'}}}):r.fulfill({status:202,json:{job_id:job}});});
+ await page.route(`**/api/v1/jobs/${job}/results`,r=>r.fulfill({json:{status:'running',source_count:0,confirmed:[],unknown:[],query:{origin:'HKG',destination:'NRT'}}}));
+ await fixedSearchAuth(page);await page.getByRole('button',{name:'Search candidates',exact:false}).click();await expect(page.locator('main').getByRole('alert')).toHaveText('Response not confirmed. Recover the original request; do not create a duplicate query.');await page.locator('input[name="origin"]').fill('SIN');await page.getByRole('button',{name:'Recover original request',exact:false}).click();await expect.poll(()=>posts.length).toBe(2);expect(posts[1]).toEqual(posts[0]);await expect(page.getByRole('button',{name:'Restore current job',exact:false})).toHaveCount(2);await page.locator('form.query').getByRole('button',{name:'Restore current job',exact:false}).click();expect(posts).toHaveLength(2);
+});
+test('account creation is explicit and explains email confirmation without a paid flight query',async({page})=>{
+ let signups=0,paid=0;
+ await page.route('**/auth/v1/signup**',r=>{signups++;return r.fulfill({json:{user:{id:'00000000-0000-4000-8000-000000000831',aud:'authenticated',email:'new-qa@example.invalid',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()},session:null}});});
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/v1/searches'))paid++;});
+ await page.goto('/');await page.getByRole('button',{name:'Switch to English',exact:true}).click();await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('button',{name:'No account? Create one',exact:true}).click();expect(signups).toBe(0);
+ await page.getByLabel('Email',{exact:true}).fill('new-qa@example.invalid');await page.getByLabel('Password',{exact:true}).fill('synthetic-not-a-real-password');await page.locator('form.auth').getByRole('button',{name:'Create account',exact:true}).click();await expect(page.locator('form.auth').getByRole('status')).toHaveText('If confirmation is required, check your email to activate your account before signing in.');expect(signups).toBe(1);expect(paid).toBe(0);
+ await page.getByRole('button',{name:'切换中文',exact:true}).click();await expect(page.locator('form.auth').getByRole('status')).toHaveText('若需要邮箱确认，请查收邮件，激活账户后再登录。');await page.getByRole('button',{name:'已有账户？登录',exact:true}).click();await expect(page.locator('form.auth').getByRole('heading',{name:'登录',exact:true})).toBeVisible();
+});
+test('known failed and cancelled jobs allow explicit new keys while uncertain jobs only restore',async({page})=>{
+ const keys:string[]=[],ids=['00000000-0000-4000-8000-000000000841','00000000-0000-4000-8000-000000000842','00000000-0000-4000-8000-000000000843'];
+ await page.route('**/api/v1/searches',r=>{keys.push(r.request().headers()['idempotency-key']);return r.fulfill({status:202,json:{job_id:ids[keys.length-1]}});});
+ await page.route('**/api/v1/jobs/*/results',r=>{const index=ids.findIndex(id=>r.request().url().includes(id));return r.fulfill({json:{status:['failed','cancelled','uncertain'][index],safe_error:index===0?'ACCOUNT_LIMITS_UNVERIFIED':null,source_count:0,confirmed:[],unknown:[],query:{origin:'HKG',destination:'NRT'}}});});
+ await fixedSearchAuth(page);await page.getByRole('button',{name:'Search candidates',exact:false}).click();await expect(page.getByText('The source is unavailable under the verified free-account limits. No automatic paid fallback is used.',{exact:true})).toBeVisible();await expect(page.locator('footer')).not.toContainText('No provider request was sent.');
+ await page.locator('form.query').getByRole('button',{name:'New live search · may incur charges',exact:false}).click();await expect(page.getByText('Cancelled',{exact:true})).toBeVisible();await page.locator('form.query').getByRole('button',{name:'New live search · may incur charges',exact:false}).click();await expect(page.getByText('Needs reconciliation; no automatic retry',{exact:true})).toBeVisible();expect(new Set(keys).size).toBe(3);
+ await page.locator('form.query').getByRole('button',{name:'Restore current job',exact:false}).click();await expect(page.getByText('Refreshing the existing job. No new provider query was created.',{exact:true})).toBeVisible();expect(keys).toHaveLength(3);
 });

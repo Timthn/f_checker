@@ -8,6 +8,13 @@ const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',return_dat
 function search(){const r=structuredClone(round.provider_response);return {...r,itineraries:r.itineraries.map((c,i)=>({...c,departure_token:`synthetic-departure-${i}`}))};}
 function returns(){const r=structuredClone(back.provider_response);return {...r,itineraries:r.itineraries.map((c,i)=>({...c,booking_token:`synthetic-booking-${i}`}))};}
 describe('bounded private Apify chain planning',()=>{
+ it('excludes explicitly unpriced candidates without shifting private continuation tokens',()=>{
+  const raw=search();const unpriced=structuredClone(raw.itineraries[0]);Object.assign(unpriced,{price:null,departure_token:'unpriced-token'});raw.itineraries.unshift(unpriced);
+  const expected=planSearch(search(),q);const actual=planSearch(raw,q);
+  expect(actual.offers.map(o=>o.money)).toEqual(expected.offers.map(o=>o.money));
+  expect(actual.next?.token).toBe(expected.next?.token);expect(actual.next?.token).not.toBe('unpriced-token');
+  const broken=search();Object.assign(broken.itineraries[0],{price:'123'});expect(()=>planSearch(broken,q)).toThrow('CHAIN_SCHEMA_CHANGED');
+ });
  it('reconstructs all compatible return itineraries without booking or summed prices',()=>{
   const a=planSearch(search(),q);expect(a.next?.mode).toBe('return');expect(a.coverage).toEqual({returned:3,selected:1});
   const b=planReturn(back.provider_response,q,a.next!.selected,a.next!.outbound_duration_minutes);expect(b.next).toBeNull();expect(b.offers).toHaveLength(3);expect(b.offers[0].segments.map(s=>s.leg_index)).toEqual([0,1]);

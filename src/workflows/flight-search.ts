@@ -7,6 +7,7 @@ import { reserveRead } from '@/server/provider-reads';
 import { checkFreeAllowance } from '@/server/provider-allowance';
 import {captureRunBilling,reconcileJobBilling} from '@/server/billing-evidence';
 import {parseRouteHistory} from '@/domain/route-history';
+import {jobExecutionEnabled} from '@/server/execution-policy';
 // Only opaque job IDs cross durable serialization boundaries. Tokens and booking payloads remain in private DB references.
 export async function flightSearch(jobId:string){
  'use workflow';
@@ -20,11 +21,11 @@ export async function flightSearch(jobId:string){
 }
 async function launch(jobId:string){
  'use step';
- if(process.env.LIVE_PROVIDER_ENABLED!=='true')throw new FatalError('LIVE_PROVIDER_DISABLED');
  await purgeExpiredReferences();
  const {transaction}=await import('@/server/db');
- const state=await transaction('worker',null,async c=>(await c.query('select status,cancelled_at,workflow_id,phase from flight.jobs where job_id=$1',[jobId])).rows[0]);
+ const state=await transaction('worker',null,async c=>(await c.query('select status,cancelled_at,workflow_id,phase,exists(select 1 from flight.batch_items b where b.child_job_id=j.job_id) as batch_member from flight.jobs j where job_id=$1',[jobId])).rows[0]);
  if(!state||state.cancelled_at||['cancelled','failed','uncertain','partial','succeeded'].includes(state.status)){await finalizeCancellation(jobId);return jobId;}
+ if(!jobExecutionEnabled(state.batch_member===true))throw new FatalError('LIVE_PROVIDER_DISABLED');
  const execution=getWorkflowMetadata().workflowRunId;
  if(state.workflow_id&&state.workflow_id!==execution)return jobId;
  const job=await claimJob(jobId,execution);if(!job)return null;
@@ -66,6 +67,8 @@ async function collect(jobId:string){
  if(!row.call_id&&mode!=='search'){
   let dispatched=false;
   try{
+   const membership=await transaction('worker',null,async c=>(await c.query('select exists(select 1 from flight.batch_items where child_job_id=$1) as batch_member',[jobId])).rows[0]);
+   if(!jobExecutionEnabled(membership?.batch_member===true))throw Error('LIVE_PROVIDER_DISABLED');
    const next=await privateContinuation(row,mode),call=await reserveCall(row,mode);
    if(call.phase!=='reserved'){await failJob(row,'DISPATCH_UNCERTAIN',true);return jobId;}
    await checkFreeAllowance(row.owner_id,call.call_id);
@@ -73,7 +76,7 @@ async function collect(jobId:string){
    dispatched=true;
    const result=await startRun({mode,tokens:[next.token],maxConcurrency:1,maxRetries:0,includeErrors:true},Number(call.ceiling_microusd)-10000);
    await saveRun(row,call.call_id,result.runId,result.datasetId);return null;
-  }catch(e){const code=!dispatched&&e instanceof Error&&['QUOTA_EXCEEDED','BATCH_BUDGET_PERIOD_EXPIRED','BATCH_OPERATION_NOT_ADMITTED','PROVIDER_REFERENCE_EXPIRED','LEASE_OR_CANCELLED','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(row,code,dispatched);await purgeReferences(row.owner_id,jobId);return jobId;}
+  }catch(e){const code=!dispatched&&e instanceof Error&&['LIVE_PROVIDER_DISABLED','QUOTA_EXCEEDED','BATCH_BUDGET_PERIOD_EXPIRED','BATCH_OPERATION_NOT_ADMITTED','PROVIDER_REFERENCE_EXPIRED','LEASE_OR_CANCELLED','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(row,code,dispatched);await purgeReferences(row.owner_id,jobId);return jobId;}
  }
  if(!row.run_id){await failJob(row,'DISPATCH_UNCERTAIN',true);return jobId;}
  if(row.reads_reserved>=24){await suspendJob(jobId,false,execution);return jobId;}

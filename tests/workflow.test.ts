@@ -14,6 +14,16 @@ import { flightSearch } from '../src/workflows/flight-search';
 const job={job_id:'qa-job',owner_id:'qa-owner',workflow_id:'qa-workflow',status:'running',lease_version:'1',cancelled_at:null,query:{origin:'HKG',destination:'NRT'},call_id:'qa-call',run_id:'QARun',dataset_id:'QADataset',provider_phase:'running'};
 beforeEach(()=>{vi.resetAllMocks();process.env.LIVE_PROVIDER_ENABLED='true';f.sql.mockResolvedValue({rows:[job]});f.claim.mockResolvedValue(job);f.reserve.mockResolvedValue({phase:'reserved',call_id:'qa-call',ceiling_microusd:'30000'});f.dispatch.mockResolvedValue(true);f.start.mockResolvedValue({runId:'QARun',datasetId:'QADataset'});f.status.mockResolvedValue({status:'RUNNING'});f.planSearch.mockReturnValue({offers:[],next:null,coverage:{returned:0,selected:0}});});
 it('capacity waits durably; poll exhaustion becomes explicit and never launches twice',async()=>{f.claim.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValue(job);await expect(flightSearch('qa-job')).resolves.toBe('qa-job');expect(f.claim).toHaveBeenCalledTimes(3);expect(f.start).toHaveBeenCalledTimes(1);expect(f.status).toHaveBeenCalledTimes(72);expect(f.suspend).toHaveBeenCalledWith('qa-job',false,'qa-workflow');});
+it('reference mode rejects existing batch children before any supplier IO',async()=>{
+ vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','true');
+ f.sql.mockResolvedValue({rows:[{...job,batch_member:true}]});
+ try{await expect(flightSearch('qa-job')).rejects.toThrow('LIVE_PROVIDER_DISABLED');expect(f.start).not.toHaveBeenCalled();expect(f.reserve).not.toHaveBeenCalled();}finally{vi.unstubAllEnvs();}
+});
+it('reference mode permits a single discovery job without changing unknown quote qualification',async()=>{
+ vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','true');
+ f.sql.mockResolvedValue({rows:[{...job,batch_member:false}]});f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.001});f.dataset.mockResolvedValue([{}]);
+ try{await flightSearch('qa-job');expect(f.start).toHaveBeenCalledTimes(1);expect(f.stage).toHaveBeenCalledTimes(1);}finally{vi.unstubAllEnvs();}
+});
 it('dataset read failure persists safe reconciliation state without replaying POST',async()=>{f.status.mockResolvedValue({status:'SUCCEEDED'});f.dataset.mockRejectedValue(Error('private upstream diagnostic must not escape'));await flightSearch('qa-job');expect(f.fail).toHaveBeenCalledWith(expect.anything(),'DATASET_RECONCILE_REQUIRED',true);expect(f.start).toHaveBeenCalledTimes(1);expect(f.complete).not.toHaveBeenCalled();});
 it('cancelled known run is reconciled by reads without publishing or new dispatch',async()=>{f.sql.mockResolvedValue({rows:[{...job,cancelled_at:'2026-10-12T00:00:00Z',status:'cancelled'}]});f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.01});await flightSearch('qa-job');expect(f.start).not.toHaveBeenCalled();expect(f.status).toHaveBeenCalledTimes(1);expect(f.complete).not.toHaveBeenCalled();expect(f.sql.mock.calls.some(([sql])=>String(sql).includes('update flight.provider_calls set phase='))).toBe(true);});
 

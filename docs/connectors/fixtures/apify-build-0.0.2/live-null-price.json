@@ -1,0 +1,118 @@
+{
+  "evidence_kind": "live_derived_redacted_sample",
+  "actor_build": "0.0.2",
+  "original_count": 19,
+  "removed": "all tokens, URLs, private query/run identifiers, unused fields; first five candidates only",
+  "provider_response": {
+    "mode": "search",
+    "trip_type": "one_way",
+    "scraped_at": "2026-10-12T06:11:32.613Z",
+    "itineraries": [
+      {
+        "trip_type": "one_way",
+        "price": 989,
+        "currency": "HKD",
+        "legs": [
+          {
+            "duration_minutes": 250,
+            "segments": [
+              {
+                "departure_airport": "HKG",
+                "arrival_airport": "NRT",
+                "departure_time": "2026-11-10T01:10:00",
+                "arrival_time": "2026-11-10T06:20:00",
+                "flight_number": "GK 28",
+                "cabin_class": "economy",
+                "duration_minutes": 250
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "trip_type": "one_way",
+        "price": 1164,
+        "currency": "HKD",
+        "legs": [
+          {
+            "duration_minutes": 245,
+            "segments": [
+              {
+                "departure_airport": "HKG",
+                "arrival_airport": "NRT",
+                "departure_time": "2026-11-10T13:00:00",
+                "arrival_time": "2026-11-10T18:05:00",
+                "flight_number": "UO 646",
+                "cabin_class": "economy",
+                "duration_minutes": 245
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "trip_type": "one_way",
+        "price": 1594,
+        "currency": "HKD",
+        "legs": [
+          {
+            "duration_minutes": 250,
+            "segments": [
+              {
+                "departure_airport": "HKG",
+                "arrival_airport": "NRT",
+                "departure_time": "2026-11-10T09:55:00",
+                "arrival_time": "2026-11-10T15:05:00",
+                "flight_number": "HB 2326",
+                "cabin_class": "economy",
+                "duration_minutes": 250
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "trip_type": "one_way",
+        "price": null,
+        "currency": "HKD",
+        "legs": [
+          {
+            "duration_minutes": 250,
+            "segments": [
+              {
+                "departure_airport": "HKG",
+                "arrival_airport": "NRT",
+                "departure_time": "2026-11-10T14:15:00",
+                "arrival_time": "2026-11-10T19:25:00",
+                "flight_number": "HX 610",
+                "cabin_class": "economy",
+                "duration_minutes": 250
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "trip_type": "one_way",
+        "price": 1164,
+        "currency": "HKD",
+        "legs": [
+          {
+            "duration_minutes": 245,
+            "segments": [
+              {
+                "departure_airport": "HKG",
+                "arrival_airport": "NRT",
+                "departure_time": "2026-11-10T02:00:00",
+                "arrival_time": "2026-11-10T07:05:00",
+                "flight_number": "UO 854",
+                "cabin_class": "economy",
+                "duration_minutes": 245
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

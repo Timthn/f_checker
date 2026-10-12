@@ -22,7 +22,9 @@ function read(raw:unknown,mode:'search'|'return',q:Search){
  if(mode==='search')for(const [key,expected] of Object.entries({departure:origin,arrival:destination,departure_date:date,return_date:q.return_date,currency:q.currency,adults:q.adults,cabin_class:q.cabin,carry_on_bags:q.carry_on,checked_bags:q.checked}))checks.push([d.input?.[key],expected]);
  if(checks.some(([actual,expected])=>actual!==undefined&&actual!==expected))throw Error('CHAIN_CONTEXT_MISMATCH');
  let offers:Offer[];try{offers=parseSearch(raw,q);}catch{throw Error('CHAIN_SCHEMA_CHANGED');}
- return {d,offers};
+ // parseSearch validates the full payload, then excludes explicit null prices.
+ // Apply the same exclusion here so private tokens retain their original pairing.
+ return {d:{...d,itineraries:d.itineraries.filter(i=>i.price!==null)},offers};
 }
 function compatible(ss:Segment[],q:Search,back=false){
  const from=back?q.destination:q.origin,to=back?q.origin:q.destination,day=back?q.return_date:q.departure;
