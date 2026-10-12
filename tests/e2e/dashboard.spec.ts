@@ -1,7 +1,23 @@
 import {test,expect,type Page} from '@playwright/test';
+test('query waiting states are bilingual and never resubmit the paid request',async({page})=>{
+ const job='00000000-0000-4000-8000-000000000831';let phase='queued',posts=0;
+ await page.route('**/api/v1/searches',r=>{posts++;return r.fulfill({status:202,json:{job_id:job,status:'queued'}});});
+ await page.route(`**/api/v1/jobs/${job}/billing`,r=>r.fulfill({status:503,json:{error:{code:'PERSISTENCE_NOT_READY'}}}));
+ await page.route(`**/api/v1/jobs/${job}/results`,r=>r.fulfill({json:{status:phase,source_count:0,confirmed:[],unknown:[],query:{origin:'HKG',destination:'NRT'},safe_error:phase==='failed'?'QUOTA_EXCEEDED':null}}));
+ await page.emulateMedia({reducedMotion:'reduce'});await fixedSearchAuth(page);
+ await expect(page).toHaveTitle('Flight checker');await expect(page.locator('.brand')).toContainText('Flight checker');
+ await page.getByRole('button',{name:'Search candidates',exact:false}).click();
+ await expect(page.locator('.job-wait')).toContainText('Waiting for the background worker');
+ expect(await page.locator('.job-spinner').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+ phase='running';await page.getByRole('button',{name:'Restore current job',exact:true}).first().click();
+ await expect(page.locator('.job-wait')).toContainText('Retrieving and processing flight quotes');
+ await page.getByRole('button',{name:'切换中文',exact:true}).click();await expect(page.locator('.job-wait')).toContainText('无需重复提交');
+ phase='failed';await page.getByRole('button',{name:'恢复当前任务',exact:true}).first().click();
+ await expect(page.locator('.job-wait')).toHaveCount(0);await expect(page.getByText('查询预算不足',{exact:true})).toBeVisible();expect(posts).toBe(1);
+});
 test('bilingual production cockpit preserves data without paid queries',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));const paid:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/v1/searches'))paid.push(r.url());});
- await page.goto('/');await expect(page.locator('.brand')).toContainText('Flight cheaker');await expect(page.locator('.entry')).toHaveCount(3);
+ await page.goto('/');await expect(page.locator('.brand')).toContainText('Flight checker');await expect(page.locator('.entry')).toHaveCount(3);
  await page.getByRole('button',{name:'暂停飞机动效',exact:true}).click();await expect(page.locator('.landing')).toHaveClass(/paused/);
  await page.getByRole('button',{name:'Switch to English',exact:true}).click();await expect(page.locator('html')).toHaveAttribute('lang','en');
  await page.getByRole('button',{name:'Find flights',exact:true}).click();await page.getByRole('button',{name:'Preview recorded samples',exact:true}).click();await expect(page.locator('.fare-row')).toHaveCount(3);
