@@ -21,7 +21,8 @@ export async function offerDetails(owner:string,id:string){return transaction('a
  const departure=offer.segments.find(s=>s.leg_index===0)?.departure_local.slice(0,10);
  const {rows:dates}=departure?await c.query('select departure::text,return_key,state,amount_minor,currency,offer_id from flight.calendar_cells where owner_id=$1 and job_id=$2 and departure between $3::date-30 and $3::date+30 order by departure',[owner,rows[0].job_id,departure]):{rows:[]};
  const datePrices:CalendarCell[]=dates.map(r=>({departure:r.departure,return_date:r.return_key||null,state:r.state,offer_id:r.offer_id,money:r.amount_minor===null?null:{minor:Number(r.amount_minor),currency:r.currency,digits:new Intl.NumberFormat('en',{style:'currency',currency:r.currency}).resolvedOptions().maximumFractionDigits??2}}));
- return {offer,history:history(offer,observations),date_prices:datePrices,coverage:'stored_cells_only'};
+ const route=await c.query('select h.payload from flight.route_history_snapshots h join flight.searches s on s.owner_id=h.owner_id join flight.jobs j on j.owner_id=s.owner_id and j.search_id=s.search_id and j.job_id=h.job_id where h.owner_id=$1 and h.job_id=$2 and h.query_fingerprint=s.fingerprint order by h.observed_at desc limit 1',[owner,rows[0].job_id]);
+ return {offer,history:history(offer,observations),date_prices:datePrices,route_history:route.rows[0]?.payload??null,coverage:'stored_cells_only'};
 });}
 export async function analyzeMeeting(owner:string,q:MeetingQuery){const [a,b]=await Promise.all([cachedOffers(owner,q.a),cachedOffers(owner,q.b)]);return {pairs:rendezvous(a,b,q.arrival_day,q.max_minutes,q.lock_a,{a:q.a,b:q.b}),a:rank(a,q.a),b:rank(b,q.b),source:'private_cache',paid_requests:0};}
 export async function analyzeFlexible(owner:string,q:FlexibleQuery){

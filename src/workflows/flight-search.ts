@@ -6,14 +6,17 @@ import { planSearch,planReturn } from '@/connectors/apify-chain';
 import { completeStage,privateContinuation,purgeReferences,purgeExpiredReferences } from '@/server/provider-chain';
 import { reserveRead } from '@/server/provider-reads';
 import { checkFreeAllowance } from '@/server/provider-allowance';
+import {captureRunBilling,reconcileJobBilling} from '@/server/billing-evidence';
+import {parseRouteHistory} from '@/domain/route-history';
 // Only opaque job IDs cross durable serialization boundaries. Tokens and booking payloads remain in private DB references.
 export async function flightSearch(jobId:string){
  'use workflow';
  let started:string|null=null;
  for(let i=0;i<24;i++){started=await launch(jobId);if(started)break;await sleep('5s');}
  if(!started){await exhaustedCapacity(jobId);return jobId;}
- for(let i=0;i<72;i++){await sleep('5s');if(await collect(jobId))return jobId;}
+ for(let i=0;i<72;i++){await sleep('5s');if(await collect(jobId)){await sleep('10s');await finalBilling(jobId);return jobId;}}
  await exhaustedPolling(jobId);
+ await sleep('10s');await finalBilling(jobId);
  return jobId;
 }
 async function launch(jobId:string){
@@ -50,7 +53,7 @@ async function collect(jobId:string){
  const row=await transaction('worker',null,async c=>{const {rows}=await c.query("select j.*,s.query,p.call_id,p.run_id,p.dataset_id,p.phase as provider_phase,p.reads_reserved from flight.jobs j join flight.searches s using(owner_id,search_id) left join flight.provider_calls p on p.owner_id=j.owner_id and p.job_id=j.job_id and p.operation_key=case when j.phase in ('return','booking') then j.phase else 'search' end where j.job_id=$1 and j.workflow_id=$2",[jobId,execution]);return rows[0];});
  if(!row)return null;
  if(row.cancelled_at){await finalizeCancellation(jobId);await purgeReferences(row.owner_id,jobId);if(!row.run_id||['succeeded','failed'].includes(row.provider_phase))return jobId;
-  try{await reserveRead(row.owner_id,row.call_id);const run=await runStatus(row.run_id);if(['SUCCEEDED','FAILED','TIMED-OUT','ABORTED'].includes(run.status)){await transaction('worker',null,async c=>{await c.query("update flight.provider_calls set phase=$3,reported_microusd=$4 where owner_id=$1 and call_id=$2 and run_id=$5",[row.owner_id,row.call_id,run.status==='SUCCEEDED'?'succeeded':'failed',typeof run.usage==='number'?Math.ceil(run.usage*1000000):null,row.run_id]);});return jobId;}}catch{await failJob(row,'CANCEL_RECONCILE_REQUIRED',true);return jobId;}return null;
+  try{await reserveRead(row.owner_id,row.call_id);const run=await runStatus(row.run_id);await captureRunBilling(row.owner_id,row.call_id,{...run,runId:row.run_id});if(['SUCCEEDED','FAILED','TIMED-OUT','ABORTED'].includes(run.status)){await transaction('worker',null,async c=>{await c.query("update flight.provider_calls set phase=$3 where owner_id=$1 and call_id=$2 and run_id=$4",[row.owner_id,row.call_id,run.status==='SUCCEEDED'?'succeeded':'failed',row.run_id]);});return jobId;}}catch{await failJob(row,'CANCEL_RECONCILE_REQUIRED',true);return jobId;}return null;
  }
  if(['cancelled','failed','uncertain','partial','succeeded'].includes(row.status))return jobId;
  // Renew only the still-current lease; collection never creates another paid run.
@@ -71,7 +74,7 @@ async function collect(jobId:string){
  }
  if(!row.run_id){await failJob(row,'DISPATCH_UNCERTAIN',true);return jobId;}
  if(row.reads_reserved>=24){await suspendJob(jobId,false,execution);return jobId;}
- let run;try{await reserveRead(row.owner_id,row.call_id);run=await runStatus(row.run_id);}catch{await failJob(row,'READ_RECONCILE_REQUIRED',true);return jobId;}
+ let run;try{await reserveRead(row.owner_id,row.call_id);run=await runStatus(row.run_id);await captureRunBilling(row.owner_id,row.call_id,{...run,runId:row.run_id});}catch{await failJob(row,'READ_RECONCILE_REQUIRED',true);return jobId;}
  if(run.status==='SUCCEEDED'){
    try{await reserveRead(row.owner_id,row.call_id);const items=await dataset(row.dataset_id);if(items.length!==1)throw Error('PROVIDER_SCHEMA_CHANGED');
    const reported=typeof run.usage==='number'?Math.ceil(run.usage*1000000):null;
@@ -81,7 +84,7 @@ async function collect(jobId:string){
     await purgeReferences(row.owner_id,jobId);return jobId;
    }
    const plan=mode==='search'?planSearch(items[0],row.query):planReturn(items[0],row.query,(await privateContinuation(row,'return')).selected);
-   await completeStage(row,row.call_id,mode==='search'?plan.offers:[],reported,plan.next,plan.coverage);
+   await completeStage(row,row.call_id,mode==='search'?plan.offers:[],reported,plan.next,plan.coverage,mode==='search'?parseRouteHistory(items[0],row.query,new Date().toISOString()):null);
    return plan.next?null:jobId;
    }catch{await failJob(row,'DATASET_RECONCILE_REQUIRED',true);return jobId;}
  }
@@ -93,3 +96,11 @@ async function exhaustedCapacity(jobId:string){'use step';await suspendJob(jobId
 exhaustedCapacity.maxRetries=0;
 async function exhaustedPolling(jobId:string){'use step';await suspendJob(jobId,false,getWorkflowMetadata().workflowRunId);return jobId;}
 exhaustedPolling.maxRetries=0;
+async function finalBilling(jobId:string){
+ 'use step';
+ const {transaction}=await import('@/server/db');
+ const owner=await transaction('worker',null,async c=>(await c.query('select owner_id from flight.jobs where job_id=$1',[jobId])).rows[0]?.owner_id);
+ if(owner)try{await reconcileJobBilling(owner,jobId);}catch{/* Read budget or missing evidence stays explicitly pending in the safe summary. */}
+ return jobId;
+}
+finalBilling.maxRetries=0;

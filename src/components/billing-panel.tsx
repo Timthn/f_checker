@@ -1,0 +1,12 @@
+'use client';
+import {useQuery} from '@tanstack/react-query';
+import {en,zh,type MessageKey} from '@/i18n/catalog';
+type JobBilling={reserved_microusd:number;reported_actor_microusd:number|null;measured_external_microusd:number|null;estimated_external_microusd:number;account_total_microusd:number|null;invoice_confirmed:false;exact_job_total_microusd:null;state:'pending_evidence'|'stable_api_observation';read_requests_reserved:number;read_request_cap:number;pending:string[]};
+/** This endpoint reads persisted evidence only. Refreshing cannot start/reconcile a provider run. */
+export function BillingPanel({jobId,owner,token,locale}:{jobId:string;owner:string;token:string;locale:'en'|'zh-Hans'}){
+ const t=(key:MessageKey)=>(locale==='en'?en:zh)[key];
+ const query=useQuery({queryKey:['job-billing',owner,jobId],enabled:!!owner&&!!token&&!!jobId,refetchOnMount:false,refetchOnWindowFocus:false,retry:false,queryFn:async({signal})=>{const r=await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}/billing`,{method:'GET',signal,headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw Error('error');return r.json() as Promise<JobBilling>;}});
+ const usd=(value:number|null|undefined)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?new Intl.NumberFormat(locale,{style:'currency',currency:'USD',maximumFractionDigits:6}).format(value/1000000):t('unknown');
+ const d=query.data;
+ return <section className="card" aria-label={t('fees')}><div className="card-head"><h2>{t('fees')}</h2><button type="button" onClick={()=>query.refetch()} disabled={query.isFetching}>{t(query.isFetching?'loading':'feesRefresh')}</button></div>{query.error&&<p role="alert">{t('feesError')}</p>}<dl><dt>{t('feesReserved')}</dt><dd>{usd(d?.reserved_microusd)}</dd><dt>{t('feesReported')}</dt><dd>{usd(d?.reported_actor_microusd)}</dd><dt>{t('feesExternalMeasured')}</dt><dd>{usd(d?.measured_external_microusd)}</dd><dt>{t('feesExternalEstimate')}</dt><dd>{usd(d?.estimated_external_microusd)}</dd><dt>{t('feesExactTotal')}</dt><dd>{usd(d?.exact_job_total_microusd)}</dd></dl><p>{t(d?.state==='stable_api_observation'?'feesStable':'feesPending')}</p>{d&&<p>{t('feesReads')} · {d.read_requests_reserved} / {d.read_request_cap}</p>}<p className="muted">{t('feesNotInvoice')}</p></section>;
+}

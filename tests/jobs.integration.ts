@@ -23,7 +23,7 @@ afterAll(async()=>{
  const amount=calls.reduce((n,c)=>n+BigInt(c.ceiling_microusd),0n);
  await admin.query('begin');
  await admin.query('update flight.budget_accounts set reserved_microusd=reserved_microusd-$2,calls_reserved=calls_reserved-$3 where account_key=any($1::text[])',[[ 'spike-lifetime',`month:${period}`,`owner:${owner}:${period}` ],amount.toString(),calls.length]);
- await admin.query('delete from flight.provider_calls where owner_id=$1',[owner]);await admin.query('delete from flight.jobs where owner_id=any($1::uuid[])',[[owner,other]]);await admin.query('delete from flight.searches where owner_id=any($1::uuid[])',[[owner,other]]);await admin.query('delete from flight.budget_accounts where account_key=$1',[`owner:${owner}:${period}`]);await admin.query('delete from auth.users where id=any($1::uuid[])',[[owner,other]]);await admin.query('commit');
+ await admin.query('delete from flight.billing_evidence where owner_id=$1',[owner]);await admin.query('delete from flight.route_history_snapshots where owner_id=$1',[owner]);await admin.query('delete from flight.provider_calls where owner_id=$1',[owner]);await admin.query('delete from flight.jobs where owner_id=any($1::uuid[])',[[owner,other]]);await admin.query('delete from flight.searches where owner_id=any($1::uuid[])',[[owner,other]]);await admin.query('delete from flight.budget_accounts where account_key=$1',[`owner:${owner}:${period}`]);await admin.query('delete from auth.users where id=any($1::uuid[])',[[owner,other]]);await admin.query('commit');
  expect((await admin.query("select reserved_microusd from flight.budget_accounts where account_key='spike-lifetime'")).rows[0].reserved_microusd).toBe(initial);
  await admin.end();await Promise.all([pool('api').end(),pool('worker').end()]);
 });
@@ -75,7 +75,7 @@ it('null lease fails closed; active reconciliation cannot clear it; cancellation
   expect((await admin.query('select run_id from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId])).rows[0].run_id).toBe('QAKnownNeverPaid');
   await expect(saveRun(claimed!,callId,'QAConflicting','QADataset')).rejects.toThrow('RUN_ACK_CONFLICT');
   expect(await reconcileKnownRun(owner,j.job_id)).toMatchObject({status:'cancelled',provider_finished:true});expect((await readJob(owner,j.job_id)).status).toBe('cancelled');
- }finally{await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
+ }finally{await admin.query('delete from flight.billing_evidence where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.route_history_snapshots where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
 });
 it('cancellation immediately before completion records terminal usage without publishing offers',async()=>{
  const j=await createJob(owner,query,randomUUID()),claimed=await claimJob(j.job_id,'qa-cancel-completion'),callId=randomUUID();expect(claimed).toBeTruthy();
@@ -85,7 +85,7 @@ it('cancellation immediately before completion records terminal usage without pu
   await cancelJob(owner,j.job_id);await finalizeCancellation(j.job_id);await completeCall(claimed!,callId,candidates,100);
   const row=(await admin.query('select phase,reported_microusd from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId])).rows[0];expect(row).toMatchObject({phase:'succeeded',reported_microusd:'100'});expect((await readJob(owner,j.job_id)).status).toBe('cancelled');
   expect((await admin.query('select count(*)::int as n from flight.offers where owner_id=$1 and job_id=$2',[owner,j.job_id])).rows[0].n).toBe(0);
- }finally{await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
+ }finally{await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.billing_evidence where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.route_history_snapshots where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
 });
 
 it('chain stages persist private references and safe coverage; replay preserves checkpoint and expires fail closed',async()=>{
@@ -103,7 +103,7 @@ it('chain stages persist private references and safe coverage; replay preserves 
   await admin.query("update flight.provider_references set expires_at=now()-interval '1 second' where owner_id=$1 and call_id=$2",[owner,callId]);await expect(privateContinuation(claimed!,'booking')).rejects.toThrow('PROVIDER_REFERENCE_EXPIRED');
   expect((await admin.query('select count(*)::int as n from flight.provider_references where owner_id=$1 and call_id=$2',[owner,callId])).rows[0].n).toBe(0);
   await cancelJob(owner,j.job_id);await finalizeCancellation(j.job_id);
- }finally{await purgeReferences(owner,j.job_id);await admin.query('delete from flight.offers where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
+ }finally{await purgeReferences(owner,j.job_id);await admin.query('delete from flight.offers where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.billing_evidence where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.route_history_snapshots where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
 });
 it('cancellation before a chain stage persists terminal usage but no tokens or candidates',async()=>{
  const j=await createJob(owner,query,randomUUID()),claimed=await claimJob(j.job_id,'qa-chain-cancel'),callId=randomUUID();expect(claimed).toBeTruthy();
@@ -112,7 +112,7 @@ it('cancellation before a chain stage persists terminal usage but no tokens or c
   await cancelJob(owner,j.job_id);await completeStage(claimed!,callId,parseSearch(economy.provider_response,query),100,{mode:'booking',token:'SYNTHETIC_CANCELLED',selected:[]},{returned:126,selected:1});
   expect((await readJob(owner,j.job_id)).status).toBe('cancelled');expect((await admin.query('select phase from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId])).rows[0].phase).toBe('succeeded');
   expect((await admin.query('select count(*)::int as n from flight.provider_references where owner_id=$1',[owner])).rows[0].n).toBe(0);expect((await admin.query('select count(*)::int as n from flight.offers where owner_id=$1 and job_id=$2',[owner,j.job_id])).rows[0].n).toBe(0);
- }finally{await purgeReferences(owner,j.job_id);await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
+ }finally{await purgeReferences(owner,j.job_id);await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.billing_evidence where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.route_history_snapshots where owner_id=$1 and call_id=$2',[owner,callId]);await admin.query('delete from flight.provider_calls where owner_id=$1 and call_id=$2',[owner,callId]);}
 });
 it('account/user reservations are atomic under concurrency and cancellation rejects pre-IO transition',async()=>{
  await transaction('worker',null,async c=>{await c.query('insert into flight.budget_accounts(account_key,cap_microusd,call_cap) values($1,30000,1)',[`owner:${owner}:${period}`]);});

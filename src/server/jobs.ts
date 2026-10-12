@@ -3,6 +3,9 @@ import { transaction } from './db';
 import { stableId } from '../domain/rules';
 import type { Search,Offer } from '../domain/contracts';
 import {recordOffer} from './offer-recording';
+import {recordRouteHistory} from './route-history-recording';
+import type {RouteHistorySnapshot} from '../domain/route-history';
+import {projectReportedCost} from './reported-cost';
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
 function validLease(value:unknown){const ms=value instanceof Date?value.getTime():typeof value==='string'?Date.parse(value):NaN;return Number.isFinite(ms)&&ms>Date.now();}
 export async function createJob(owner:string,query:Search,key:string){return transaction('api',owner,async c=>{
@@ -94,18 +97,19 @@ export async function saveRun(job:Job,callId:string,runId:string,datasetId:strin
  const {rows}=await c.query("update flight.provider_calls set run_id=$1,dataset_id=$2,phase='running' where owner_id=$3 and job_id=$4 and call_id=$5 and lease_version=$6 and phase in ('dispatching','uncertain','running') and (run_id is null or run_id=$1 and dataset_id=$2) returning call_id",[runId,datasetId,job.owner_id,job.job_id,callId,job.lease_version]);
  if(rows.length!==1)throw Error('RUN_ACK_CONFLICT');
 });}
-export async function completeCall(job:Job,callId:string,offers:Offer[],reportedMicrousd:number|null){return transaction('worker',null,async c=>{
+export async function completeCall(job:Job,callId:string,offers:Offer[],reportedMicrousd:number|null,routeHistory:RouteHistorySnapshot|null=null){return transaction('worker',null,async c=>{
  const lock=await c.query('select lease_version,lease_until,cancelled_at,status from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id]);if(lock.rows[0]?.lease_version!==job.lease_version)throw Error('LEASE_LOST');
  if(lock.rows[0].cancelled_at){
   await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
-  await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2 and job_id=$4",[job.owner_id,callId,reportedMicrousd,job.job_id]);
+  await c.query("update flight.provider_calls set phase='succeeded' where owner_id=$1 and call_id=$2 and job_id=$3",[job.owner_id,callId,job.job_id]);await projectReportedCost(c,job.owner_id,callId,reportedMicrousd);
   await c.query('insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing',[job.owner_id,job.job_id,callId,{count:0,cancelled:true}]);
   await c.query("update flight.jobs set status='cancelled',lease_until=null where owner_id=$1 and job_id=$2 and status not in ('partial','succeeded')",[job.owner_id,job.job_id]);return;
  }
  if(!validLease(lock.rows[0].lease_until))throw Error('LEASE_LOST');
+ await recordRouteHistory(c,job.owner_id,job.job_id,callId,job.query,routeHistory);
  await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
  for(let i=0;i<offers.length;i++)await recordOffer(c,job.owner_id,job.job_id,`${callId}:${i}`,offers[i],job.query);
- await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2",[job.owner_id,callId,reportedMicrousd]);
+ await c.query("update flight.provider_calls set phase='succeeded' where owner_id=$1 and call_id=$2",[job.owner_id,callId]);await projectReportedCost(c,job.owner_id,callId,reportedMicrousd);
  await c.query("insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing",[job.owner_id,job.job_id,callId,{count:offers.length}]);
  await c.query("update flight.jobs set status='partial',phase='candidate_search',lease_until=null where owner_id=$1 and job_id=$2 and lease_version=$3",[job.owner_id,job.job_id,job.lease_version]);
 });}

@@ -1,6 +1,9 @@
 import { transaction } from './db';
 import { completeCall } from './jobs';
 import {recordOffer} from './offer-recording';
+import {recordRouteHistory} from './route-history-recording';
+import type {RouteHistorySnapshot} from '../domain/route-history';
+import {projectReportedCost} from './reported-cost';
 import type { Search,Offer,Segment } from '../domain/contracts';
 
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
@@ -22,14 +25,14 @@ export async function privateContinuation(job:Job,mode:'return'|'booking'):Promi
 }
 
 // Atomic stage checkpoint, token storage and pointer advancement. No secret in safe_result.
-export async function completeStage(job:Job,callId:string,offers:Offer[],reported:number|null,next:PrivateNext|null,coverage:ChainCoverage){
- if(!next){await completeCall(job,callId,offers,reported);await purgeReferences(job.owner_id,job.job_id);return;}
+export async function completeStage(job:Job,callId:string,offers:Offer[],reported:number|null,next:PrivateNext|null,coverage:ChainCoverage,routeHistory:RouteHistorySnapshot|null=null){
+ if(!next){await completeCall(job,callId,offers,reported,routeHistory);await purgeReferences(job.owner_id,job.job_id);return;}
  await transaction('worker',null,async c=>{
   const {rows}=await c.query('select lease_version,lease_until,cancelled_at from flight.jobs where owner_id=$1 and job_id=$2 for update',[job.owner_id,job.job_id]);
   const state=rows[0],until=state?.lease_until instanceof Date?state.lease_until.getTime():NaN;
   if(!state||state.lease_version!==job.lease_version)throw Error('LEASE_LOST');
   if(state.cancelled_at){
-   await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2 and job_id=$4",[job.owner_id,callId,reported,job.job_id]);
+   await c.query("update flight.provider_calls set phase='succeeded' where owner_id=$1 and call_id=$2 and job_id=$3",[job.owner_id,callId,job.job_id]);await projectReportedCost(c,job.owner_id,callId,reported);
    await c.query('insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4) on conflict do nothing',[job.owner_id,job.job_id,callId,{count:0,cancelled:true}]);
    await c.query("update flight.jobs set status='cancelled',lease_until=null where owner_id=$1 and job_id=$2",[job.owner_id,job.job_id]);
    await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);return;
@@ -37,8 +40,10 @@ export async function completeStage(job:Job,callId:string,offers:Offer[],reporte
   if(!Number.isFinite(until)||until<=Date.now())throw Error('LEASE_LOST');
   const prior=await c.query('select step from flight.checkpoints where owner_id=$1 and job_id=$2 and step=$3',[job.owner_id,job.job_id,callId]);
   if(prior.rows.length)return;
-  const ack=await c.query("update flight.provider_calls set phase='succeeded',reported_microusd=$3 where owner_id=$1 and call_id=$2 and job_id=$4 and lease_version=$5 and phase='running' returning call_id",[job.owner_id,callId,reported,job.job_id,job.lease_version]);
+  const ack=await c.query("update flight.provider_calls set phase='succeeded' where owner_id=$1 and call_id=$2 and job_id=$3 and lease_version=$4 and phase='running' returning call_id",[job.owner_id,callId,job.job_id,job.lease_version]);
   if(ack.rows.length!==1)throw Error('RUN_ACK_CONFLICT');
+  await projectReportedCost(c,job.owner_id,callId,reported);
+  await recordRouteHistory(c,job.owner_id,job.job_id,callId,job.query,routeHistory);
   for(let i=0;i<offers.length;i++)await recordOffer(c,job.owner_id,job.job_id,`${callId}:${i}`,offers[i],job.query);
   // Keep the original chain expiry; advancing stages must not extend token lifetime.
   const earlier=await c.query('select min(r.expires_at) as until from flight.provider_references r join flight.provider_calls p using(owner_id,call_id) where p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);

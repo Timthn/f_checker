@@ -34,3 +34,13 @@ Read-only batch results now have owner/member scope, whole admitted-date meeting
 ### Continuation round3/5
 
 Production live-batch controls and Auth create/status/cancel endpoints now connect to durable parent SDK execution and the existing prepaid child chain. This remains fail-closed behind LIVE_PROVIDER_ENABLED=false; no actual source meeting/date-matrix success is claimed. Browser mock flows9/9 and actual DB admission/recovery tests passed; source alternatives/full fare rights/UTC evidence and final cost accounting remain pending. Parent/child recovery contract and qualification limits: docs/decisions/0006-batch-orchestration.md. SDK crash/restart evidence for this parent is still absent; single-search prior evidence is not substituted.
+
+### Latest counter authority — cycle03 at0/5
+
+The human explicitly reset development rounds again while retaining five rounds. Active cycle2026-10-12-live-batch-03 begins completed0/5. Cycle02 completed3 rounds and unfinished history/billing work are preserved. This administrative amendment does not certify new tests or source acceptance. Continue unfinished work as round1 with original cost/call/deployment boundaries; see docs/progress.md and docs/harness-contract.md.
+
+### Cycle03 round1 — history/fee implementation, full acceptance still pending
+
+Provider route snapshots and private billing evidence now persist, with separate source/fetch times and owner RLS. Three details charts and saved cost panel are bilingual. Full unit/mock133, restricted DB history/billing3, source-time persistence target1, production build23steps/2workflows, and browser mock9 pass. Seven CLI migration versions match. Independent review resolved stale costs, reconciliation starvation and stale-source freshness; no remaining P1/P2 in this slice. See docs/decisions/0007-route-history-and-billing-evidence.md.
+
+Live source party price, segment/passenger baggage, UTC semantics and candidate alternatives remain unproven; live flag stays false. Full measured external/account/invoice costs and actual parent SDK crash/restart remain pending. Existing comparable recording is continuously written only on eligible user-triggered real quotes, never on cache reads or background sampling. These tests do not certify actual source fares or fees.
