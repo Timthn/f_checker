@@ -1,0 +1,30 @@
+# Price-linked baggage research
+
+User wants baggage within filtering/ranking and a card comparing prices under different bag requirements, but explicitly defers implementation if evidence is unavailable. This is research, not connector approval, a subscription, booking integration or permission to expand paid tests. No provider calls made.
+
+## Existing source: partial evidence, not no evidence
+
+Local live-derived build0.0.2 fixtures contain itinerary-level `carry_on_bags_included`0/1 and often null `checked_bags_included`. `carry-on-search.json` includes a returned carry0 despite requested carry1. This may distinguish base inclusion from requested added-bag pricing, or indicate unsupported/incomplete filtering; the samples alone do not resolve semantics. Original adapter intentionally does not project aggregate counts into passenger/segment rights. UI unknown means insufficient inclusion proof, not necessarily absence of all source fields. Earlier shorthand “source provides no baggage” was too broad.
+
+Original one-way booking sample has empty baggage_prices; round-trip booking has “1 free carry-on”, still no complete checked weights/passenger/segment scope. These existing read-only fixtures are evidence, not a request to resume booking lookups.
+
+Publisher search documentation says carry_on_bags0–1 and checked_bags0–2 request bag-inclusive prices, and shows itinerary carry-on inclusion. No kg input or guaranteed exhaustive rights schema is established. Current published docs may differ from pinned build0.0.2; do not update build automatically. Sources: [search API](https://scrapercompany.com/docs/reference/google-flights), [Actor input](https://apify.com/scrapercompany/google-flights-scraper/input-schema), [Actor overview](https://apify.com/scrapercompany/google-flights-scraper). These are publisher claims, not Google/airline confirmation.
+
+## Recommended next validation, no new key
+
+Keep current Apify, validate one route/date/cabin/currency/passenger context with three requested configurations: carry0/checked0 (no requirement, not guaranteed zero inclusion); carry1/checked0; carry1/checked1. Compare only exact full flight schedule and compatible fare identity where available, preserve original amount/request/raw inclusion hints/source time. For round trips complete each selected outbound/return chain; search alone is insufficient. Existing dispatch/read/lease/budget guards remain. Select price sorting at source so bag-inclusive candidate price ordering is inspected.
+
+Any future price card should label these as source quotes under requested bag configurations. Do not subtract prices and call the difference a baggage fee: fare brands/availability/capture time can differ. Missing itinerary stays unavailable, null bag fields stay unknown. No kg default, no invented per-person rights, no summing outbound/return amounts. Empty results do not prove no qualifying flight. Observe the returned hints and manually compare supplier/airline displayed quote before promoting filter capability. This validation is pending, not performed during research.
+
+For strict “includes X” ranking, require complete relevant passenger/segment evidence; unknown offers stay separately labeled. Alternative source-request ranking can be shown as reference once validated without claiming rights verification. User can avoid booking entirely.
+
+## Alternatives
+
+- **Duffel:** offers expose passenger/segment baggages; single-offer retrieval can add missing allowances and available services. Available baggage services link passenger_ids/segment_ids with amounts, but coverage depends on airline. Its pricing has search-to-order/excess-search conditions; not an assumed free personal calendar backend. New account/token and live airline coverage verification required. [Offers](https://duffel.com/docs/api/offers), [extra bags](https://duffel.com/docs/guides/adding-extra-bags), [pricing](https://duffel.com/pricing), [search limits](https://help.duffel.com/hc/en-gb/articles/360019684099-Is-there-any-limit-to-how-many-searches-I-can-make).
+- **Amadeus Self-Service:** travelerPricings/fareDetailsBySegment can carry checked inclusion; pricing ancillary information can price extra checked bags. Official FAQ says cabin baggage is not returned; guide says low-cost airline content is unavailable. This misses important HK Express/Jetstar-style use cases. New account/client credentials and production content/terms validation required; not recommended as universal replacement. [Official guide](https://github.com/amadeus4dev/developer-guides/blob/master/docs/resources/flights.md), [FAQ](https://admin.developers.amadeus.com/self-service/apis-docs/guides/developer-guides/faq/).
+- **Another Apify Actor, poidata:** publisher advertises bookingOptions with fare/baggage/provider price when includeBookingDetails is enabled. This is a candidate only; no local test, guarantee of checked kg, unchanged build compatibility or price/coverage proof. Adds per-result detail fetches and would require a deliberately authorized source/build change. [Publisher](https://apify.com/poidata/google-flights-scraper).
+- **Airline site fare-specific shopping:** can resolve fare family and baggage options for selected itinerary, but needs airline-specific access/parser/semantics. General baggage policy pages do not establish allowance or add-on price for this particular fare; do not attach their generic fees to current Apify prices.
+
+## Decision
+
+No baggage-price grid implemented from this research. Preserve unknown states and existing user requested filters. First-choice future spike is existing Apify three-configuration comparison, limited to selected itinerary; no need for new credentials or a booking purchase flow. Document actual filter behavior before enabling strict inclusion filtering or displaying kg/extra-bag fees.
