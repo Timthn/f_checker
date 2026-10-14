@@ -1,4 +1,5 @@
 import type {Offer,Search} from './contracts';
+export function searchConditionsChanged(draft:Search,submitted:Search){return (['origin','destination','departure','return_date','cabin','adults','currency','carry_on','checked'] as const).some(k=>draft[k]!==submitted[k])||JSON.stringify(draft.traveler_baggage??null)!==JSON.stringify(submitted.traveler_baggage??null);}
 export function searchPresentation(offers:Offer[],query:Search){
  const digits=new Intl.NumberFormat('en',{style:'currency',currency:query.currency}).resolvedOptions().maximumFractionDigits??2;
  const sorted=offers.filter(o=>o.money.currency===query.currency&&o.money.digits===digits&&Number.isSafeInteger(o.money.minor)&&o.money.minor>0&&(query.return_date||!o.segments.some(s=>s.leg_index===1))).slice().sort((a,b)=>a.money.minor-b.money.minor||a.offer_id.localeCompare(b.offer_id));

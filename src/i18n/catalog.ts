@@ -1,4 +1,5 @@
 export const en = {
+  submittedConditions:'Current results use',draftChanged:'Conditions changed. Search again to update these results.',oneWayQuery:'One-way',roundTripQuery:'Round trip',roundTripBestNote:'Lowest complete round-trip source quote returned in this search. Other outbound branches are not exhaustively explored.',
   chartGapNote:'Dots are returned prices. The dashed line connects available quotes; missing dates have no quote.',
   nearbyMean:'Average of available nearby departure-date prices',nearbyRange:'Selected departure ±15 days',
   outboundCandidates:'Outbound flights · up to 10',returnCandidates:'Return flights · up to 10',roundTripReference:'Round-trip total · source reference',roundTripPending:'Waiting for a round-trip quote',returnCandidatesNote:'Return options match the outbound itinerary selected by the source. Prices shown are round-trip references, not separate return fares.',
@@ -63,6 +64,7 @@ export const en = {
 } as const;
 export type MessageKey=keyof typeof en;
 export const zh:Record<MessageKey,string>={
+  submittedConditions:'当前结果使用的条件',draftChanged:'条件已修改，请再次搜索以更新结果。',oneWayQuery:'单程',roundTripQuery:'往返',roundTripBestNote:'显示本次已返回完整往返组合中的最低来源报价，尚未穷举其他去程分支。',
   chartGapNote:'圆点为来源报价；虚线连接已有报价点，缺失日期没有报价。',
   nearbyMean:'邻近出发日期已返回价格的平均价',nearbyRange:'选定出发日期前后各15天',
   outboundCandidates:'去程航班 · 最多10个',returnCandidates:'回程航班 · 最多10个',roundTripReference:'往返总额 · 来源参考',roundTripPending:'等待往返报价',returnCandidatesNote:'回程候选对应来源选定的去程；显示的是往返参考总额，不是回程单独价格。',
