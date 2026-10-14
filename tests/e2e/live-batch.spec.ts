@@ -48,7 +48,7 @@ test('flexible live request uses explicit ranges while edits and language change
  const live=page.getByRole('region',{name:'Live batch · explicit request'});await live.hover();await page.getByRole('button',{name:'切换中文',exact:true}).click();await page.getByRole('button',{name:'Switch to English',exact:true}).click();expect(posts).toHaveLength(0);
  const travelerA=page.getByRole('heading',{name:'Traveler A',exact:true}).locator('..'),travelerB=page.getByRole('heading',{name:'Traveler B',exact:true}).locator('..');
  await travelerA.getByLabel('Carry-on pieces',{exact:true}).fill('1');await travelerA.getByLabel('Checked pieces',{exact:true}).fill('0');await travelerB.getByLabel('Carry-on pieces',{exact:true}).fill('0');await travelerB.getByLabel('Checked pieces',{exact:true}).fill('2');
- await expect(page.getByText(/The source supports one uniform filter/)).toBeVisible();expect(posts).toHaveLength(0);
+ await expect(page.getByText(/A and B are queried separately/)).toBeVisible();expect(posts).toHaveLength(0);
  await page.screenshot({path:'docs/qa/screenshots/flexible-baggage-readable.png',fullPage:true});
  await live.getByRole('button',{name:'Search these dates',exact:true}).click();await expect(live.getByRole('button',{name:'Prepare a new query',exact:true})).toBeVisible();expect(posts).toHaveLength(1);expect(posts[0]).toMatchObject({kind:'flexible',request:{departure_from:'2026-11-09',departure_to:'2026-11-09',return_from:'2026-11-17',return_to:'2026-11-17',max_budget_microusd:500000}});
  await expect(live.getByText('No fully verified date combination.',{exact:true})).toBeVisible();await expect(live.getByText('Verified / searched / planned · 0 / 1 / 1',{exact:true})).toBeVisible();

@@ -4,6 +4,7 @@ import { meetingSchema,flexibleSchema,type MeetingQuery,type FlexibleQuery } fro
 import { datePairs,stableId } from './rules';
 import type { Search } from './contracts';
 import {selectFlexiblePairs,type ExplorationSeed} from './flexible-exploration';
+import {flexibleSourceQueries} from './flexible-baggage';
 
 // The explicit logical-batch ceiling does not enlarge account/month/lifetime caps.
 const ceiling=z.number().int().min(30000).max(500000).default(100000);
@@ -27,7 +28,7 @@ export function planBatch(kind:BatchPlan['kind'],request:unknown,lockedAValidate
   const q=parsed as LiveFlexible;scope=q.strategy==='heuristic'?'heuristic_dates':'cartesian_dates';
   const selected=selectFlexiblePairs(q,seeds),pairs=selected.pairs;possible=selected.possible_queries;basis=selected.selection_basis;
   // Local date arithmetic cannot establish destination-local nights across the date line.
-  for(const p of pairs)inputs.push({query:{...q.base,...p},participant:'dates'});
+  for(const p of pairs)inputs.push(...flexibleSourceQueries({...q.base,...p}));
  }
  const unique=new Map<string,BatchQuery>();
  for(const item of inputs){const fingerprint=stableId(item.query),previous=unique.get(fingerprint);if(previous){if(!previous.participants.includes(item.participant))previous.participants.push(item.participant);continue;}

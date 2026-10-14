@@ -1,5 +1,10 @@
 export const en = {
-  flexBagMode:'Two travelers · separate baggage preferences',flexBagUniformNotice:'The source supports one uniform filter: both travelers are searched with the higher baggage requirement. Included rights for each traveler still need confirmation.',
+  selectedDatePairs:'Selected date pairs',
+  combinedIncludesNote:'Included allowances remain separate for A and B; missing details are unknown.',legacyBagQuery:'This saved task used the earlier shared query. Search again to get separate A/B quotes.',
+  calendarStale:'Saved calendar prices may be outdated; fetch again to update.',calendarCaptured:'Captured calendar reference',calendarAgeUnknown:'Saved calendar price age is unknown.',
+  includedLabel:'Included in returned quote',requestedLabel:'Requested bags',individualSourceQuote:'Individual source quote',independentTotal:'A + B reference total',independentQuoteNotice:'Sum of independent quotes. Seat availability and included rights still need confirmation.',segmentLabel:'Segment',
+  calendarFetch:'Fetch nearby date prices',calendarRecover:'Recover date-price query',calendarReference:'Nearby dates · route calendar references',calendarNotice:'One date-window query. These are route-level calendar prices, not prices for the selected flight; included bags remain unconfirmed.',calendarFixedReturn:'Fixed return date',calendarNoReturn:'One-way calendar',calendarCoverage:'Dates with source prices',calendarSavedFallback:'Saved exact-query quotes remain available below.',
+  flexBagMode:'Two travelers · separate baggage preferences',flexBagUniformNotice:'A and B are queried separately with their own baggage preferences; matching flights show both quotes and their reference total. Included rights remain subject to source evidence.',
   usage:'Usage',usageMode:'Private saved provider usage',
   meetingDisplayedTotal:'Combined source quote',meetingArrivalGap:'Arrival-time difference',advancedQueries:'Advanced query settings',strategyBriefHeuristic:'Sample a few date pairs first; later explicit searches can explore nearby saved-price dates.',strategyBriefExhaustive:'Search every selected departure/return pair. More coverage, longer waiting.',
   outboundLeg:"Outbound",
@@ -55,7 +60,12 @@ export const en = {
 } as const;
 export type MessageKey=keyof typeof en;
 export const zh:Record<MessageKey,string>={
-  flexBagMode:'两人同行 · 分别设置行李需求',flexBagUniformNotice:'数据源仅支持统一筛选，按两人较高行李需求查询；返回价格包含的每人权益仍需确认。',
+  selectedDatePairs:'选定日期组合',
+  combinedIncludesNote:'合计权益分别见 A、B；未提供的项目仍属未知。',legacyBagQuery:'此保存任务使用旧版统一查询；再次搜索可获取 A/B 分别报价。',
+  calendarStale:'已保存的日历价格可能过期，可重新获取更新。',calendarCaptured:'日历报价获取时间',calendarAgeUnknown:'已保存日历价格的时间未知。',
+  includedLabel:'返回报价包含的行李',requestedLabel:'查询行李要求',individualSourceQuote:'此侧来源报价',independentTotal:'A + B 参考合计',independentQuoteNotice:'两次独立报价的合计，余座与实际包含权益仍待确认。',segmentLabel:'航段',
+  calendarFetch:'获取邻近日期价格',calendarRecover:'恢复日期价格查询',calendarReference:'邻近日期 · 航线日历参考价',calendarNotice:'一次查询整个日期窗口。返回的是航线日历参考价，不代表选中班次当天的价格；包含行李仍待确认。',calendarFixedReturn:'固定返回日期',calendarNoReturn:'单程日期价格',calendarCoverage:'来源返回价格的日期',calendarSavedFallback:'下方仍可查看已保存的同条件报价。',
+  flexBagMode:'两人同行 · 分别设置行李需求',flexBagUniformNotice:'A、B 按各自行李需求分别查询；相同班次展示两侧报价及参考合计。实际包含权益以来源证据为准。',
   usage:'用量',usageMode:'私人已保存用量记录',
 outboundLeg:"去程",
 returnLeg:"回程",

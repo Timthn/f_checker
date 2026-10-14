@@ -1,0 +1,10 @@
+import {it,expect} from 'vitest';
+import {createRequire} from 'node:module';
+const {checkCalendarBuild}=createRequire(import.meta.url)('../tools/check-calendar-build.cjs');
+const file='src/workflows/flight-calendar.ts';
+const steps=Object.fromEntries(['launch','collect','capacity','exhausted','billing'].map(n=>[n,{stepId:`step//./src/workflows/flight-calendar//${n}`} ]));
+const manifest={steps:{[file]:steps},workflows:{[file]:{flightCalendar:{workflowId:'workflow//./src/workflows/flight-calendar//flightCalendar'}}}};
+const registration='import "../../../../../workflows/flight-calendar.ts";';
+it('rejects a workflow-only manifest with no actual calendar steps',()=>{expect(()=>checkCalendarBuild({...manifest,steps:{}},registration)).toThrow('CALENDAR_STEPS_NOT_REGISTERED');});
+it('rejects a manifest without the runtime step import',()=>{expect(()=>checkCalendarBuild(manifest,'')).toThrow('CALENDAR_RUNTIME_IMPORT_MISSING');});
+it('accepts all five exact calendar step IDs plus workflow and runtime import',()=>{expect(checkCalendarBuild(manifest,registration)).toEqual({calendar_steps:5,calendar_workflows:1,runtime_step_import:true});});

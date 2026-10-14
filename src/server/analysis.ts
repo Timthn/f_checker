@@ -32,6 +32,31 @@ export async function offerDetails(owner:string,id:string){return transaction('a
 export async function analyzeMeeting(owner:string,q:MeetingQuery){const [a,b]=await Promise.all([cachedOffers(owner,q.a),cachedOffers(owner,q.b)]);return {pairs:rendezvous(a,b,q.arrival_day,q.max_minutes,q.lock_a,{a:q.a,b:q.b}),a:rank(a,q.a),b:rank(b,q.b),source:'private_cache',paid_requests:0};}
 export async function analyzeFlexible(owner:string,q:FlexibleQuery){
  const planned=datePairs(q.departure_from,q.departure_to,q.return_from,q.return_to),cells:CalendarCell[]=[],verified:Offer[]=[];
+ if(q.base.traveler_baggage){
+  const [{flexibleSourceQueries},{batchResults}]=await Promise.all([import('../domain/flexible-baggage'),import('../domain/batch-results')]);
+  type Saved={owner_id:string;query:Search;payload?:Offer;status:string};
+  const rows=await transaction('api',owner,async c=>{
+   const params=[owner,q.base.origin,q.base.destination,q.departure_from,q.departure_to,q.return_from,q.return_to];
+   const bounds="s.query->>'origin'=$2 and s.query->>'destination'=$3 and s.query->>'departure'>=$4 and s.query->>'departure'<=$5 and s.query->>'return_date'>=$6 and s.query->>'return_date'<=$7";
+   const quotes=await c.query(`select o.owner_id,s.query,o.payload,j.status from flight.offers o join flight.jobs j using(owner_id,job_id) join flight.searches s using(owner_id,search_id) where o.owner_id=$1 and ${bounds} order by o.observed_at desc limit 500`,params);
+   const queries=await c.query(`select s.owner_id,s.query,j.status from flight.searches s join flight.jobs j using(owner_id,search_id) where s.owner_id=$1 and j.phase='candidate_search' and j.status in ('succeeded','partial') and ${bounds} order by j.created_at desc limit 500`,params);
+   return [...quotes.rows,...queries.rows] as Saved[];
+  });
+  const expected=new Map<string,{query:Search;participants:('a'|'b')[]}>();
+  for(const pair of planned)for(const input of flexibleSourceQueries({...q.base,...pair})){
+   if(input.participant==='dates')continue;const fingerprint=stableId(input.query),prior=expected.get(fingerprint);
+   if(prior){if(!prior.participants.includes(input.participant))prior.participants.push(input.participant);}else expected.set(fingerprint,{query:input.query,participants:[input.participant]});
+  }
+  const known=new Map<string,{query:Search;participants:('a'|'b')[];offers:Offer[];searched:boolean}>();
+  for(const row of rows){if(row.owner_id!==owner||!row.query)continue;const fingerprint=stableId(row.query),match=expected.get(fingerprint);if(!match)continue;
+   const member=known.get(fingerprint)??{...match,offers:[],searched:false};if(row.payload)member.offers.push(row.payload);if(['succeeded','partial'].includes(row.status))member.searched=true;known.set(fingerprint,member);
+  }
+  const members=[...known.entries()];
+  const plan:import('../domain/batch-contracts').BatchPlan={version:1,kind:'flexible',request:{...q,max_budget_microusd:500000,strategy:'exhaustive',max_pairs:3},queries:members.map(([fingerprint,m],ordinal)=>({ordinal,fingerprint,query:m.query,participants:m.participants,operations:['search','return']})),call_count:0,ceiling_microusd:0,coverage:{scope:'private_cache',requested_queries:planned.length,unique_queries:members.length,verification_branches_per_query:1}};
+  const result=batchResults(plan,members.map(([,m],ordinal)=>({ordinal,status:m.searched?'succeeded':'partial',phase:'return',offers:m.offers,searched:m.searched})));
+  if(result.kind!=='flexible')throw Error('INVALID_RANGE');
+  return {...result,cells:planned.map(pair=>({...pair,state:'unknown' as const,money:null})),recommendations:[],coverage:{...result.coverage,planned:planned.length,searched:result.separate_traveler_cells.filter(c=>c.searched_a&&c.searched_b).length,verified:0},source:'private_cache' as const,paid_requests:0};
+ }
  // One scoped read; a Cartesian grid must not generate an unbudgeted series of provider runs.
  const {offers,searched}=await transaction('api',owner,async c=>{
  const {rows}=await c.query("select o.payload from flight.offers o join flight.jobs j using(owner_id,job_id) join flight.searches s using(owner_id,search_id) where o.owner_id=$1 and s.query->>'origin'=$2 and s.query->>'destination'=$3 and s.query->>'departure'>=$4 and s.query->>'departure'<=$5 and (s.query-'departure'-'return_date')=($6::jsonb-'departure'-'return_date') order by o.observed_at desc limit 500",[owner,q.base.origin,q.base.destination,q.departure_from,q.departure_to,JSON.stringify(q.base)]);

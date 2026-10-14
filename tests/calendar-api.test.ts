@@ -1,0 +1,18 @@
+import {vi,it,expect,beforeEach,afterEach} from 'vitest';
+const f=vi.hoisted(()=>({auth:vi.fn(),create:vi.fn(),ensure:vi.fn(),read:vi.fn(),start:vi.fn()}));
+vi.mock('../src/server/auth',()=>({authenticate:f.auth}));
+vi.mock('../src/server/calendar-jobs',()=>({createCalendarJob:f.create,readCalendarJob:f.read}));
+vi.mock('../src/server/jobs',()=>({ensureWorkflow:f.ensure}));
+vi.mock('../src/workflows/flight-calendar',()=>({flightCalendar:vi.fn()}));
+vi.mock('workflow/api',()=>({start:f.start}));
+import {POST} from '../src/app/api/v1/calendar-jobs/route';
+import {GET} from '../src/app/api/v1/calendar-jobs/[id]/route';
+const id='00000000-0000-4000-8000-000000000001';
+const body={query:{origin:'HKG',destination:'NRT',departure:'2026-11-10',adults:1,cabin:'economy',currency:'HKD',carry_on:0,checked:0},window_days:30};
+const req=(b:unknown=body)=>new Request('http://localhost/api/v1/calendar-jobs',{method:'POST',headers:{'Idempotency-Key':id},body:JSON.stringify(b)});
+it('rejects non-UUID admission keys before database or SDK work',async()=>{const response=await POST(new Request('http://localhost/api/v1/calendar-jobs',{method:'POST',headers:{'Idempotency-Key':'________-____-____-____-____________'},body:JSON.stringify(body)}));expect(response.status).toBe(422);expect(f.create).not.toHaveBeenCalled();expect(f.start).not.toHaveBeenCalled();});
+beforeEach(()=>{vi.resetAllMocks();f.auth.mockResolvedValue('qa-owner');f.create.mockResolvedValue({job_id:id,reused:false});vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','true');vi.stubEnv('DATABASE_URL','SYNTHETIC');vi.stubEnv('WORKER_DATABASE_URL','SYNTHETIC');vi.stubEnv('APIFY_API_TOKEN','SYNTHETIC');});afterEach(()=>vi.unstubAllEnvs());
+it('rejects unauthenticated/invalid requests without admission or SDK starts',async()=>{f.auth.mockResolvedValueOnce(null);expect((await POST(req())).status).toBe(401);expect((await POST(req([]))).status).toBe(422);expect(f.create).not.toHaveBeenCalled();expect(f.start).not.toHaveBeenCalled();});
+it('admission uses normalized query and SDK launches only the opaque job id',async()=>{f.ensure.mockImplementation(async(_owner,_id,launch)=>{await launch(id);});f.start.mockResolvedValue({runId:'qa-sdk'});expect((await POST(req())).status).toBe(202);expect(f.create).toHaveBeenCalledWith('qa-owner',expect.objectContaining({calendar_window_days:30}),id);expect(f.start.mock.calls[0][1]).toEqual([id]);});
+it('foreign or missing calendar task returns 404 and GET never creates a workflow',async()=>{f.read.mockResolvedValue(null);expect((await GET(new Request('http://localhost'),{params:Promise.resolve({id})})).status).toBe(404);expect(f.read).toHaveBeenCalledWith('qa-owner',id);expect(f.start).not.toHaveBeenCalled();expect(f.create).not.toHaveBeenCalled();});
+it('ambiguous SDK acknowledgement returns safe 503 without raw diagnostics',async()=>{f.ensure.mockRejectedValue(Error('private-secret-diagnostic'));const response=await POST(req());expect(response.status).toBe(503);expect(JSON.stringify(await response.json())).not.toContain('private-secret');});

@@ -5,6 +5,7 @@ import {qualifies,rendezvous,rendezvousCandidates,rendezvousFrontier,closestGapA
 import {referenceEligible,referenceMeeting,referenceNights} from './reference-recommendations';
 
 export type BatchResultItem={ordinal:number;status:string;phase:string;offers:Offer[];searched?:boolean};
+export type SeparateTravelerRecommendation={a:Offer;b:Offer;total:Offer['money'];nights:number;preferences:NonNullable<LiveFlexible['base']['traveler_baggage']>;time_basis:'destination_local_assumption';constraints:'unknown'};
 const searched=(i:BatchResultItem|undefined)=>i?.searched??false;
 // Inputs come exclusively from owner-scoped members of this batch. Cached rows are never merged.
 export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offer|null=null,now=new Date()){
@@ -53,7 +54,29 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   return {kind:'meeting' as const,...referenceMeeting(refs.a,refs.b,q.arrival_day,q.max_minutes),pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
  }
  const q=plan.request as LiveFlexible,cells:(CalendarCell&{query_status:string;searched:boolean})[]=[],verified:{offer:Offer;nights:number}[]=[];
- for(const m of members){
+ const separated=members.some(m=>m.planned.participants.includes('a')||m.planned.participants.includes('b'));
+ const separate_traveler_recommendations:SeparateTravelerRecommendation[]=[],separate_traveler_cells:{departure:string;return_date:string|null;a:Offer|null;b:Offer|null;total:Offer['money']|null;nights:number|null;state:'reference'|'unknown';searched_a:boolean;searched_b:boolean}[]=[];
+ if(separated&&q.base.traveler_baggage){
+  const dates=[...new Map(members.map(m=>[`${m.planned.query.departure}/${m.planned.query.return_date??''}`,{departure:m.planned.query.departure,return_date:m.planned.query.return_date??null}])).values()];
+  // Query-specific IDs may differ between passengers. Match every ordered segment instead.
+  const identity=(o:Offer)=>JSON.stringify([o.money.currency,o.money.digits,o.segments.map(s=>[s.leg_index,s.from,s.to,s.flight,s.departure_local,s.arrival_local,s.cabin])]);
+  for(const date of dates){
+   const atDate=members.filter(m=>m.planned.query.departure===date.departure&&(m.planned.query.return_date??null)===date.return_date);
+   const eligible=(side:'a'|'b')=>{const unique=new Map<string,{offer:Offer;nights:number}>();for(const m of atDate)if(m.planned.participants.includes(side)&&m.planned.query.adults===1&&!m.planned.query.traveler_baggage)for(const offer of m.item?.offers??[]){
+    if(!referenceEligible(offer,m.planned.query,now)||offer.segments.some(s=>!s.flight.trim()))continue;const nights=referenceNights(offer);if(nights===null||nights<q.min_nights||nights>q.max_nights)continue;
+    const key=identity(offer),prior=unique.get(key);if(!prior||offer.money.minor<prior.offer.money.minor||offer.money.minor===prior.offer.money.minor&&offer.offer_id.localeCompare(prior.offer.offer_id)<0)unique.set(key,{offer,nights});
+   }return unique;};
+   const left=eligible('a'),right=eligible('b'),matched:SeparateTravelerRecommendation[]=[];
+   for(const [key,a] of left){const b=right.get(key);if(!b||a.nights!==b.nights)continue;const minor=a.offer.money.minor+b.offer.money.minor;if(!Number.isSafeInteger(minor))continue;
+    matched.push({a:a.offer,b:b.offer,total:{...a.offer.money,minor},nights:a.nights,preferences:q.base.traveler_baggage,time_basis:'destination_local_assumption',constraints:'unknown'});
+   }
+   matched.sort((a,b)=>a.total.minor-b.total.minor||a.a.offer_id.localeCompare(b.a.offer_id)||a.b.offer_id.localeCompare(b.b.offer_id));
+   const best=matched[0];if(best)separate_traveler_recommendations.push(best);
+   separate_traveler_cells.push({...date,a:best?.a??null,b:best?.b??null,total:best?.total??null,nights:best?.nights??null,state:best?'reference':'unknown',searched_a:atDate.some(m=>m.planned.participants.includes('a')&&searched(m.item)),searched_b:atDate.some(m=>m.planned.participants.includes('b')&&searched(m.item))});
+  }
+  separate_traveler_recommendations.sort((a,b)=>a.total.minor-b.total.minor||a.nights-b.nights||a.a.offer_id.localeCompare(b.a.offer_id)||a.b.offer_id.localeCompare(b.b.offer_id));
+ }
+ for(const m of members.filter(m=>!separated||m.planned.participants.includes('dates'))){
   const valid=(m.item?.offers??[]).flatMap(offer=>{
    if(qualifies(offer,m.planned.query,now)!=='confirmed'||!offer.time_verified)return [];
    const out=offer.segments.filter(s=>s.leg_index===0).at(-1),back=offer.segments.find(s=>s.leg_index===1);
@@ -69,11 +92,11 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
  }
  verified.sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.nights-b.nights||(a.offer.duration_minutes??Infinity)-(b.offer.duration_minutes??Infinity)||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id)||a.offer.offer_id.localeCompare(b.offer.offer_id));
  const reference_recommendations:{offer:Offer;nights:number;time_basis:'destination_local_assumption'}[]=[],reference_cells:{departure:string;return_date:string|null;money:Offer['money']|null}[]=[];
- for(const m of members){
+ for(const m of members.filter(m=>!separated||m.planned.participants.includes('dates'))){
   const valid=(m.item?.offers??[]).flatMap(offer=>{if(!referenceEligible(offer,m.planned.query,now))return [];const nights=referenceNights(offer);return nights!==null&&nights>=q.min_nights&&nights<=q.max_nights?[{offer,nights,time_basis:'destination_local_assumption' as const}]:[];}).sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id));
   if(valid[0])reference_recommendations.push(valid[0]);
   reference_cells.push({departure:m.planned.query.departure,return_date:m.planned.query.return_date??null,money:valid[0]?.offer.money??null});
  }
  reference_recommendations.sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.nights-b.nights||a.offer.itinerary_id.localeCompare(b.offer.itinerary_id));
- return {kind:'flexible' as const,cells,reference_cells,reference_recommendations:reference_recommendations.slice(0,5),recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length,reference_cells:reference_recommendations.length},source_candidates,source:'batch_members_only' as const};
+ return {kind:'flexible' as const,cells,reference_cells,reference_recommendations:reference_recommendations.slice(0,5),separate_traveler_recommendations:separate_traveler_recommendations.slice(0,5),separate_traveler_cells,recommendations:verified.slice(0,5).map(v=>({...v.offer,nights:v.nights})),coverage:{...coverage,verified_cells:verified.length,reference_cells:reference_recommendations.length,separate_traveler_cells:separate_traveler_recommendations.length,searched_a:separate_traveler_cells.filter(c=>c.searched_a).length,searched_b:separate_traveler_cells.filter(c=>c.searched_b).length},source_candidates,source:'batch_members_only' as const};
 }

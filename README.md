@@ -2,6 +2,8 @@
 
 Local bilingual flight dashboard using Next.js/TypeScript, Supabase and a gated Apify connector. Current limits and acceptance gaps: [application status](docs/architecture/application-status.md). Visual reference: [prototype](docs/design/prototype.html).
 
+Latest Oct15 behavior supersedes older uniform-filter descriptions: flexible A/B baggage preferences are searched independently, and matching full itineraries show each person's source amount/inclusions plus the combined reference total. Defaults request one carry-on and zero checked bags; unavailable rights stay unknown. Details include an explicit departure-centered calendar request with fixed return date, coarse route prices and freshness/coverage. Costs are consolidated in Usage; server caps remain unchanged. See [scoped QA](docs/qa/separate-quotes-calendar-2026-10-15.md) and [ADR0013](docs/decisions/0013-separate-quotes-and-calendar.md).
+
 Requires Node24. Dependencies are project-local, pinned and locked. With Node24 on the current shell's PATH:
 
 Build/dev use Next's supported Webpack mode: the local Turbopack Workflow loader failed to start its child process during round7. Webpack production compilation/typechecking passed; qualified actual SDK recovery later passed with synthetic IO and a120s isolated test lease; production860s lease and live recovery remain unproven.
