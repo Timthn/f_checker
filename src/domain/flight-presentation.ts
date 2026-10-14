@@ -14,4 +14,4 @@ export function presentLocalTime(value:string,locale:string){
  return {clock:`${String(clock.hour).padStart(2,'0')}:${String(clock.minute).padStart(2,'0')}`,date:new Intl.DateTimeFormat(locale,{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(`${day}T00:00:00Z`)),day};
 }
 export function localDayChange(from:string,to:string){const a=localClock(from),b=localClock(to);return a&&b?a.toPlainDate().until(b.toPlainDate()).days:null;}
-export function departureWindow(day:string){const d=Temporal.PlainDate.from(day);return Array.from({length:61},(_,i)=>d.add({days:i-30}).toString());}
+export function departureWindow(day:string,radius=30){if(!Number.isInteger(radius)||radius<1||radius>30)throw Error('INVALID_WINDOW');const d=Temporal.PlainDate.from(day);return Array.from({length:radius*2+1},(_,i)=>d.add({days:i-radius}).toString());}
