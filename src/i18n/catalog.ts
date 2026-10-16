@@ -1,4 +1,5 @@
 export const en = {
+  bagSearchBasis:'Per-person baggage request used for price search; included allowance is subject to source evidence.',bagPriceOrder:'Sorted by source price under these baggage requirements.',
   submittedConditions:'Current results use',draftChanged:'Conditions changed. Search again to update these results.',oneWayQuery:'One-way',roundTripQuery:'Round trip',roundTripBestNote:'Lowest complete round-trip source quote returned in this search. Other outbound branches are not exhaustively explored.',
   chartGapNote:'Dots are returned prices. The dashed line connects available quotes; missing dates have no quote.',
   nearbyMean:'Average of available nearby departure-date prices',nearbyRange:'Selected departure ±15 days',
@@ -64,6 +65,7 @@ export const en = {
 } as const;
 export type MessageKey=keyof typeof en;
 export const zh:Record<MessageKey,string>={
+  bagSearchBasis:'按每位旅客的行李件数要求查询价格；实际包含额度以来源信息为准。',bagPriceOrder:'按上述行李条件下的来源报价，从低到高排序。',
   submittedConditions:'当前结果使用的条件',draftChanged:'条件已修改，请再次搜索以更新结果。',oneWayQuery:'单程',roundTripQuery:'往返',roundTripBestNote:'显示本次已返回完整往返组合中的最低来源报价，尚未穷举其他去程分支。',
   chartGapNote:'圆点为来源报价；虚线连接已有报价点，缺失日期没有报价。',
   nearbyMean:'邻近出发日期已返回价格的平均价',nearbyRange:'选定出发日期前后各15天',

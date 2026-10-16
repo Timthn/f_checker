@@ -40,7 +40,7 @@ async function launch(jobId:string){
    const q=job.query;
    // Keep USD0.01 of the USD0.03 reservation for bounded read/storage overhead.
    // The adequacy of this allowance remains a live-mode gate, not a verified tariff.
-   const {runId,datasetId}=await startRun({mode:'search',routes:[`${q.origin}-${q.destination}`],departure_date:q.departure,return_date:q.return_date,adults:q.adults,cabin_class:q.cabin,currency:q.currency,carry_on_bags:q.carry_on,checked_bags:q.checked,maxConcurrency:1,maxRetries:0},Number(call.ceiling_microusd)-10000);
+   const {runId,datasetId}=await startRun({mode:'search',routes:[`${q.origin}-${q.destination}`],departure_date:q.departure,return_date:q.return_date,adults:q.adults,cabin_class:q.cabin,currency:q.currency,carry_on_bags:q.carry_on,checked_bags:q.checked,sort_by:'price',maxConcurrency:1,maxRetries:0},Number(call.ceiling_microusd)-10000);
    await saveRun(job,call.call_id,runId,datasetId);
    return jobId;
  }catch(e){const code=e instanceof Error&&['QUOTA_EXCEEDED','LEASE_OR_CANCELLED','BATCH_BUDGET_PERIOD_EXPIRED','BATCH_OPERATION_NOT_ADMITTED','MISSING_CREDENTIALS','ACCOUNT_PLAN_NOT_FREE','ACCOUNT_LIMITS_UNVERIFIED','DISPATCH_UNCERTAIN'].includes(e.message)?e.message:dispatched?'DISPATCH_UNCERTAIN':'ACCOUNT_LIMITS_UNVERIFIED';await failJob(job,code,dispatched||code==='DISPATCH_UNCERTAIN');throw new FatalError(code);}

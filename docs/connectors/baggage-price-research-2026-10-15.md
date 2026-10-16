@@ -1,5 +1,7 @@
 # Price-linked baggage research
 
+Oct16 implementation amendment: user explicitly asked to use the existing baggage quantity inputs, rather than add a comparison flow. Fixed-search already sends requested carry_on/checked; source launch now also requests sort_by=price, and result banner displays submitted per-person counts with an unconfirmed-inclusion disclaimer. No three-configuration paid experiment or price grid enabled. Source filter correctness/kg completeness remain pending live evidence; price differences are not inferred as fees. Deliberate new searches use the change; existing saved jobs are not replayed.
+
 User wants baggage within filtering/ranking and a card comparing prices under different bag requirements, but explicitly defers implementation if evidence is unavailable. This is research, not connector approval, a subscription, booking integration or permission to expand paid tests. No provider calls made.
 
 ## Existing source: partial evidence, not no evidence
