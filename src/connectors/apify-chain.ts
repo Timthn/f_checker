@@ -5,7 +5,9 @@ import { parseSearch } from './apify-adapter';
 import { stableId } from '../domain/rules';
 import type { Offer, Search, Segment } from '../domain/contracts';
 
-export type ChainNext = {mode:'return'|'booking';token:string;selected:Segment[];outbound_duration_minutes?:number|null};
+type ReturnOperation='return'|'return:1'|'return:2';
+type Branch={token:string;selected:Segment[];outbound_duration_minutes:number|null;operation_key:ReturnOperation};
+export type ChainNext = {mode:'return'|'booking';token:string;selected:Segment[];outbound_duration_minutes?:number|null;operation_key?:ReturnOperation;remaining?:Branch[]};
 export type ChainPlan = {offers:Offer[];next:ChainNext|null;coverage:{returned:number;selected:number}};
 const envelope=z.object({mode:z.enum(['search','return']),trip_type:z.string(),itineraries:z.array(z.object({
   trip_type:z.string(),departure_token:z.unknown().optional(),booking_token:z.unknown().optional(),
@@ -36,19 +38,45 @@ function candidatesFor(offers:Offer[],q:Search,back=false){
  if(!candidates.length&&offers.length)throw Error('CHAIN_CONTEXT_MISMATCH');
  return candidates;
 }
-function choose(offers:Offer[],d:z.infer<typeof envelope>,q:Search){
+const schedule=(segments:Segment[])=>JSON.stringify(segments.map(s=>[s.flight,s.from,s.to,s.departure_local,s.arrival_local,s.cabin]));
+function choose(offers:Offer[],d:z.infer<typeof envelope>,q:Search,maxBranches:number){
  const candidates=candidatesFor(offers,q);
- if(!offers.length)return null;
+ if(!offers.length)return [];
  const usable=candidates.filter(({index})=>opaque(d.itineraries[index].departure_token)).sort((a,b)=>a.offer.money.minor-b.offer.money.minor||a.index-b.index);
  if(!usable.length)throw Error('CHAIN_REFERENCE_UNAVAILABLE');
- const chosen=usable[0];return {...chosen,token:d.itineraries[chosen.index].departure_token as string};
+ const seen=new Set<string>();return usable.filter(({offer})=>{const key=schedule(offer.segments);if(seen.has(key))return false;seen.add(key);return true;}).slice(0,maxBranches).map(chosen=>({...chosen,token:d.itineraries[chosen.index].departure_token as string}));
 }
-export function planSearch(raw:unknown,query:Search):ChainPlan{
+export function planSearch(raw:unknown,query:Search,maxBranches=1):ChainPlan{
+ if(!Number.isInteger(maxBranches)||maxBranches<1||maxBranches>3)throw Error('CHAIN_SCHEMA_CHANGED');
  const {d,offers}=read(raw,'search',query);
  const compatibleOffers=candidatesFor(offers,query).map(c=>c.offer);
  if(!query.return_date)return {offers:compatibleOffers,next:null,coverage:{returned:offers.length,selected:compatibleOffers.length}};
- const picked=choose(offers,d,query);
- return {offers:compatibleOffers,next:picked?{mode:'return',token:picked.token,selected:picked.offer.segments,outbound_duration_minutes:picked.offer.duration_minutes}:null,coverage:{returned:offers.length,selected:picked?1:0}};
+ const picked=choose(offers,d,query,maxBranches),first=picked[0];
+ const branches:Branch[]=picked.map((p,i)=>({token:p.token,selected:p.offer.segments,outbound_duration_minutes:p.offer.duration_minutes,operation_key:i===0?'return':i===1?'return:1':'return:2'}));
+ return {offers:compatibleOffers,next:first?{mode:'return',token:first.token,selected:first.offer.segments,outbound_duration_minutes:first.offer.duration_minutes,...(maxBranches>1?{operation_key:branches[0].operation_key,remaining:branches.slice(1)}:{})}:null,coverage:{returned:offers.length,selected:picked.length}};
+}
+const privateSegment=z.object({leg_index:z.literal(0),from:z.string().min(1),to:z.string().min(1),departure_local:z.string().min(10),arrival_local:z.string().min(10),departure_utc:z.string().nullable(),arrival_utc:z.string().nullable(),arrival_zone:z.string().nullable(),flight:z.string().min(1),cabin:z.string().min(1),duration:z.number()}).passthrough();
+const privateBranch=z.object({token:z.string().refine(opaque),selected:z.array(privateSegment).min(1).max(32),outbound_duration_minutes:z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),operation_key:z.enum(['return','return:1','return:2'])}).strict();
+// This queue is private connector state. Validate before advancing so corrupted
+// state cannot add an operation, reorder tokens, or change outbound context.
+export function advanceReturnPlan(result:ChainPlan,currentNext:ChainNext):ChainPlan{
+ const fail=()=>{throw Error('CHAIN_SCHEMA_CHANGED');};
+ if(!currentNext||currentNext.mode!=='return'||result.next!==null) return fail();
+ const selected=z.array(privateSegment).min(1).max(32).safeParse(currentNext.selected);
+ if(!opaque(currentNext.token)||!selected.success||selected.data.some((s,i)=>s.cabin!==selected.data[0].cabin||(i>0&&selected.data[i-1].to!==s.from)))return fail();
+ if(currentNext.operation_key===undefined&&currentNext.remaining===undefined)return {...result,next:null};
+ const current=privateBranch.safeParse({token:currentNext.token,selected:currentNext.selected,outbound_duration_minutes:currentNext.outbound_duration_minutes,operation_key:currentNext.operation_key});
+ const rest=z.array(privateBranch).max(2).safeParse(currentNext.remaining);
+ if(!current.success||!rest.success)return fail();
+ const operations:ReturnOperation[]=['return','return:1','return:2'],start=operations.indexOf(current.data.operation_key);
+ const base=current.data.selected,seen=new Set([schedule(base)]);
+ for(const [i,branch] of rest.data.entries()){
+  const ss=branch.selected,key=schedule(ss);
+  if(branch.operation_key!==operations[start+i+1]||seen.has(key)||ss[0].from!==base[0].from||ss.at(-1)!.to!==base.at(-1)!.to||ss[0].departure_local.slice(0,10)!==base[0].departure_local.slice(0,10)||ss.some((s,j)=>s.cabin!==base[0].cabin||(j>0&&ss[j-1].to!==s.from)))return fail();
+  seen.add(key);
+ }
+ const [next,...remaining]=currentNext.remaining!;
+ return {...result,next:next?{mode:'return',...next,remaining}:null};
 }
 export function planReturn(raw:unknown,query:Search,selected:Segment[],outboundDuration:number|null=null):ChainPlan{
  if(!query.return_date||!compatible(selected,query))throw Error('CHAIN_CONTEXT_MISMATCH');

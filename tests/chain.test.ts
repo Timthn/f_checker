@@ -2,7 +2,7 @@ import {describe,it,expect} from 'vitest';
 import round from '../docs/connectors/fixtures/apify-build-0.0.2/round-trip-search.json';
 import one from '../docs/connectors/fixtures/apify-build-0.0.2/economy-one-way.json';
 import back from '../docs/connectors/fixtures/apify-build-0.0.2/return-options.json';
-import {planSearch,planReturn} from '../src/connectors/apify-chain';
+import {planSearch,planReturn,advanceReturnPlan} from '../src/connectors/apify-chain';
 import type {Search} from '../src/domain/contracts';
 import {referenceEligible,referenceNights} from '../src/domain/reference-recommendations';
 const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',return_date:'2026-11-17',cabin:'economy',adults:1,currency:'HKD',carry_on:0,checked:0};
@@ -54,6 +54,49 @@ describe('bounded private Apify chain planning',()=>{
   expect(()=>planReturn(returns(),q,selected.map(s=>({...s,from:'SIN'})))).toThrow('CHAIN_CONTEXT_MISMATCH');
   expect(()=>planReturn({...returns(),return_date:'2026-11-18'},q,selected)).toThrow('CHAIN_CONTEXT_MISMATCH');
   const r=returns();r.itineraries.forEach(c=>c.legs[0].segments[0].departure_time='2026-11-18T08:15:00');expect(()=>planReturn(r,q,selected)).toThrow('CHAIN_CONTEXT_MISMATCH');
+ });
+ it('keeps default single-branch shape and bounds explicit branch counts',()=>{
+  const legacy=planSearch(search(),q),single=planSearch(search(),q,1);
+  expect(single.next).toEqual(legacy.next);expect(single.next).not.toHaveProperty('operation_key');expect(single.next).not.toHaveProperty('remaining');
+  for(const limit of [0,4,-1,1.5,NaN])expect(()=>planSearch(search(),q,limit)).toThrow('CHAIN_SCHEMA_CHANGED');
+ });
+ it('chooses cheapest three distinct schedules with original tokens despite duplicates and null prices',()=>{
+  const raw=search(),duplicate=structuredClone(raw.itineraries[0]),unpriced=structuredClone(raw.itineraries[1]);
+  Object.assign(duplicate,{price:100,price_exact:100,display_price:'HK$100',departure_token:'cheap-duplicate'});
+  Object.assign(unpriced,{price:null,departure_token:'null-token'});raw.itineraries.unshift(unpriced,duplicate);
+  const plan=planSearch(raw,q,3),next=plan.next!;
+  expect(plan.coverage).toEqual({returned:4,selected:3});expect(next.operation_key).toBe('return');expect(next.token).toBe('cheap-duplicate');
+  expect(next.remaining?.map(b=>b.operation_key)).toEqual(['return:1','return:2']);
+  expect(next.remaining?.map(b=>b.token)).toEqual(['synthetic-departure-1','synthetic-departure-2']);
+  const two=planSearch(raw,q,2);expect(two.coverage.selected).toBe(2);expect(two.next?.remaining?.map(b=>b.token)).toEqual(['synthetic-departure-1']);
+  expect(JSON.stringify(plan.offers)).not.toContain('token');
+ });
+ it('uses only available compatible usable schedules for one or two branches',()=>{
+  const raw=search();raw.itineraries[0].currency='USD';raw.itineraries[2].departure_token='[REDACTED]';
+  const one=planSearch(raw,q,3);expect(one.coverage.selected).toBe(1);expect(one.next?.token).toBe('synthetic-departure-1');expect(one.next?.remaining).toEqual([]);
+  raw.itineraries[2].departure_token='usable-third';
+  const two=planSearch(raw,q,3);expect(two.coverage.selected).toBe(2);expect(two.next?.remaining?.map(b=>b.token)).toEqual(['usable-third']);
+  raw.itineraries[1].legs[0].segments[0].departure_airport='SIN';expect(planSearch(raw,q,3).next?.token).toBe('usable-third');
+ });
+ it('advances each outbound once preserving exact paired return prices and outbound identity',()=>{
+  let next=planSearch(search(),q,3).next;const tokens:string[]=[],flights:string[]=[],keys:string[]=[];
+  while(next){
+   tokens.push(next.token);keys.push(next.operation_key!);flights.push(next.selected[0].flight);
+   const result=planReturn(returns(),q,next.selected,next.outbound_duration_minutes),advanced=advanceReturnPlan(result,next);
+   expect(advanced.offers).toBe(result.offers);expect(advanced.coverage).toBe(result.coverage);
+   expect(advanced.offers.map(o=>o.money.minor)).toEqual(back.provider_response.itineraries.map(o=>o.price*100));
+   expect(advanced.offers.every(o=>o.segments[0].flight===next!.selected[0].flight&&o.complete&&!o.price_complete&&o.baggage.length===0&&o.quoted_adults===null)).toBe(true);
+   next=advanced.next;
+  }
+  expect(tokens).toEqual(['synthetic-departure-0','synthetic-departure-1','synthetic-departure-2']);expect(keys).toEqual(['return','return:1','return:2']);expect(new Set(flights).size).toBe(3);
+  const legacy=planSearch(search(),q).next!;expect(advanceReturnPlan(planReturn(returns(),q,legacy.selected),legacy).next).toBeNull();
+ });
+ it('rejects malformed private queues and operation order with safe errors',()=>{
+  const next=planSearch(search(),q,3).next!,result=planReturn(returns(),q,next.selected);
+  const invalid:unknown[]=[{...next,operation_key:'return:3'},{...next,operation_key:undefined},{...next,remaining:{}},{...next,remaining:[...next.remaining!,next.remaining![0]]},{...next,remaining:[next.remaining![1]]},{...next,remaining:[{...next.remaining![0],token:'[REDACTED]'}]},{...next,remaining:[{...next.remaining![0],remaining:[]}]},{...next,remaining:[{...next.remaining![0],selected:[]}]},{...next,remaining:[{...next.remaining![0],selected:next.selected}]},{...next,remaining:[{...next.remaining![0],selected:next.remaining![0].selected.map(s=>({...s,from:'SIN'}))}]}];
+  for(const value of invalid)expect(()=>advanceReturnPlan(result,value as typeof next)).toThrow('CHAIN_SCHEMA_CHANGED');
+  const legacy=planSearch(search(),q).next!;
+  for(const value of [{...legacy,token:'[REDACTED]'},{...legacy,selected:[]},{...next,mode:'booking'},{...next,remaining:[{...next.remaining![0],operation_key:'return:3'}]},{...next,remaining:[{...next.remaining![0],outbound_duration_minutes:-1}]}])expect(()=>advanceReturnPlan(result,value as typeof next)).toThrow('CHAIN_SCHEMA_CHANGED');
  });
  it('rejects malformed private schema with safe non-payload error',()=>{expect(()=>planSearch({mode:'secret-token'},q)).toThrow('CHAIN_SCHEMA_CHANGED');});
 });

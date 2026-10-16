@@ -1,19 +1,19 @@
 import { vi,beforeEach,it,expect } from 'vitest';
-const f=vi.hoisted(()=>({sleep:vi.fn(),claim:vi.fn(),reserve:vi.fn(),dispatch:vi.fn(),save:vi.fn(),complete:vi.fn(),fail:vi.fn(),suspend:vi.fn(),cancel:vi.fn(),start:vi.fn(),status:vi.fn(),dataset:vi.fn(),parse:vi.fn(),sql:vi.fn(),planSearch:vi.fn(),planReturn:vi.fn(),stage:vi.fn(),private:vi.fn(),purge:vi.fn(),captureBilling:vi.fn(),reconcileBilling:vi.fn()}));
+const f=vi.hoisted(()=>({sleep:vi.fn(),claim:vi.fn(),reserve:vi.fn(),dispatch:vi.fn(),save:vi.fn(),complete:vi.fn(),fail:vi.fn(),suspend:vi.fn(),cancel:vi.fn(),start:vi.fn(),status:vi.fn(),dataset:vi.fn(),parse:vi.fn(),sql:vi.fn(),planSearch:vi.fn(),planReturn:vi.fn(),advance:vi.fn(),stage:vi.fn(),private:vi.fn(),purge:vi.fn(),captureBilling:vi.fn(),reconcileBilling:vi.fn()}));
 vi.mock('workflow',()=>({sleep:f.sleep,FatalError:class extends Error{},getWorkflowMetadata:()=>({workflowRunId:'qa-workflow'})}));
 vi.mock('../src/server/jobs',()=>({claimJob:f.claim,reserveCall:f.reserve,beginDispatch:f.dispatch,saveRun:f.save,completeCall:f.complete,failJob:f.fail,suspendJob:f.suspend,finalizeCancellation:f.cancel}));
 vi.mock('../src/server/db',()=>({transaction:async(_kind:unknown,_owner:unknown,fn:(c:unknown)=>unknown)=>fn({query:f.sql})}));
 vi.mock('../src/connectors/apify-rest',()=>({startRun:f.start,runStatus:f.status,dataset:f.dataset}));
 vi.mock('../src/connectors/apify-adapter',()=>({parseBooking:f.parse}));
-vi.mock('../src/connectors/apify-chain',()=>({planSearch:f.planSearch,planReturn:f.planReturn}));
+vi.mock('../src/connectors/apify-chain',()=>({planSearch:f.planSearch,planReturn:f.planReturn,advanceReturnPlan:f.advance}));
 vi.mock('../src/server/provider-chain',()=>({completeStage:f.stage,privateContinuation:f.private,purgeReferences:f.purge,purgeExpiredReferences:f.purge}));
 vi.mock('../src/server/provider-reads',()=>({reserveRead:vi.fn()}));
 vi.mock('../src/server/provider-allowance',()=>({checkFreeAllowance:vi.fn()}));
 vi.mock('../src/server/billing-evidence',()=>({captureRunBilling:f.captureBilling,reconcileJobBilling:f.reconcileBilling}));
 import { flightSearch } from '../src/workflows/flight-search';
 const job={job_id:'qa-job',owner_id:'qa-owner',workflow_id:'qa-workflow',status:'running',lease_version:'1',cancelled_at:null,query:{origin:'HKG',destination:'NRT'},call_id:'qa-call',run_id:'QARun',dataset_id:'QADataset',provider_phase:'running'};
-beforeEach(()=>{vi.resetAllMocks();process.env.LIVE_PROVIDER_ENABLED='true';f.sql.mockResolvedValue({rows:[job]});f.claim.mockResolvedValue(job);f.reserve.mockResolvedValue({phase:'reserved',call_id:'qa-call',ceiling_microusd:'30000'});f.dispatch.mockResolvedValue(true);f.start.mockResolvedValue({runId:'QARun',datasetId:'QADataset'});f.status.mockResolvedValue({status:'RUNNING'});f.planSearch.mockReturnValue({offers:[],next:null,coverage:{returned:0,selected:0}});});
-it('capacity waits durably; poll exhaustion becomes explicit and never launches twice',async()=>{f.claim.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValue(job);await expect(flightSearch('qa-job')).resolves.toBe('qa-job');expect(f.claim).toHaveBeenCalledTimes(3);expect(f.start).toHaveBeenCalledTimes(1);expect(f.status).toHaveBeenCalledTimes(72);expect(f.suspend).toHaveBeenCalledWith('qa-job',false,'qa-workflow');});
+beforeEach(()=>{vi.resetAllMocks();f.advance.mockImplementation((result)=>result);process.env.LIVE_PROVIDER_ENABLED='true';f.sql.mockResolvedValue({rows:[job]});f.claim.mockResolvedValue(job);f.reserve.mockResolvedValue({phase:'reserved',call_id:'qa-call',ceiling_microusd:'30000'});f.dispatch.mockResolvedValue(true);f.start.mockResolvedValue({runId:'QARun',datasetId:'QADataset'});f.status.mockResolvedValue({status:'RUNNING'});f.planSearch.mockReturnValue({offers:[],next:null,coverage:{returned:0,selected:0}});});
+it('capacity waits durably; poll exhaustion becomes explicit and never launches twice',async()=>{f.claim.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValue(job);await expect(flightSearch('qa-job')).resolves.toBe('qa-job');expect(f.claim).toHaveBeenCalledTimes(3);expect(f.start).toHaveBeenCalledTimes(1);expect(f.status).toHaveBeenCalledTimes(120);expect(f.suspend).toHaveBeenCalledWith('qa-job',false,'qa-workflow');});
 it('reference mode rejects existing batch children before any supplier IO',async()=>{
  vi.stubEnv('LIVE_PROVIDER_ENABLED','false');vi.stubEnv('LIVE_REFERENCE_SEARCH_ENABLED','true');
  f.sql.mockResolvedValue({rows:[{...job,batch_member:true}]});
@@ -45,6 +45,29 @@ it('bounded round-trip finishes with return candidates and never requests bookin
 it('legacy booking checkpoint stops before provider IO',async()=>{
  f.sql.mockResolvedValue({rows:[{...job,phase:'booking'}]});await flightSearch('qa-job');
  expect(f.fail).toHaveBeenCalledWith(expect.anything(),'BOOKING_ENDPOINT_UNSUPPORTED',true);expect(f.start).not.toHaveBeenCalled();expect(f.status).not.toHaveBeenCalled();expect(f.dataset).not.toHaveBeenCalled();
+});
+it('explores three frozen outbound branches serially with distinct durable operations and exact source totals',async()=>{
+ let phase='search',hasRun=true;
+ const branches=['return','return:1','return:2'].map((operation_key,i)=>({operation_key,token:`SYNTHETIC_${i}`,selected:[],outbound_duration_minutes:100}));
+ let next={mode:'return' as const,...branches[0],remaining:branches.slice(1)};
+ f.sql.mockImplementation(async(sql:string)=>({rows:[String(sql).includes('select j.*')?{...job,phase,query:{...job.query,return_date:'2026-11-17'},...(hasRun?{}:{call_id:null,run_id:null,dataset_id:null})}:{...job,batch_member:false}]}));
+ f.planSearch.mockReturnValue({offers:[],next,coverage:{returned:19,selected:3}});
+ f.planReturn.mockImplementation(()=>({offers:[{money:{minor:120000,currency:'HKD'},branch:phase}],next:null,coverage:{returned:1,selected:1}}));
+ f.advance.mockImplementation((result,current)=>({...result,next:current.remaining?.length?{mode:'return',...current.remaining[0],remaining:current.remaining.slice(1)}:null}));
+ f.stage.mockImplementation(async(_job,_call,_offers,_usage,n)=>{if(n){next=n;phase=n.operation_key??n.mode;hasRun=false;}});
+ f.private.mockImplementation(async()=>next);f.save.mockImplementation(async()=>{hasRun=true;});
+ f.status.mockResolvedValue({status:'SUCCEEDED',usage:0.00505});f.dataset.mockResolvedValue([{}]);
+ await flightSearch('qa-job');
+ expect(f.planSearch).toHaveBeenCalledWith({},expect.anything(),3);
+ expect(f.start.mock.calls.map(c=>c[0].mode)).toEqual(['search','return','return','return']);
+ expect(f.start.mock.calls.slice(1).map(c=>c[0].tokens)).toEqual([['SYNTHETIC_0'],['SYNTHETIC_1'],['SYNTHETIC_2']]);
+ expect(f.reserve.mock.calls.map(c=>c[1])).toEqual(['search','return','return:1','return:2']);
+ expect(f.stage.mock.calls.slice(1).map(c=>c[2][0].money.minor)).toEqual([120000,120000,120000]);expect(f.stage.mock.calls.at(-1)![4]).toBeNull();
+});
+it('a corrupt branch cursor stops before any additional provider dispatch',async()=>{
+ f.sql.mockResolvedValue({rows:[{...job,phase:'return:1',call_id:null,run_id:null}]});
+ f.private.mockResolvedValue({mode:'return',operation_key:'return:2',token:'SYNTHETIC_BAD',selected:[],remaining:[]});
+ await flightSearch('qa-job');expect(f.start).toHaveBeenCalledTimes(1);expect(f.reserve).toHaveBeenCalledTimes(1);expect(f.fail).toHaveBeenCalledWith(expect.anything(),'PROVIDER_REFERENCE_EXPIRED',false);
 });
 it('legacy booking discovered during collection retains unresolved paid call uncertainty',async()=>{
  f.sql.mockImplementation(async(sql:string)=>({rows:[String(sql).includes('select j.*')?{...job,phase:'booking',provider_phase:'dispatching'}:job]}));

@@ -1,7 +1,7 @@
 import { sleep, FatalError,getWorkflowMetadata } from 'workflow';
 import { claimJob,reserveCall,beginDispatch,saveRun,failJob,suspendJob,finalizeCancellation } from '@/server/jobs';
 import { startRun,runStatus,dataset } from '@/connectors/apify-rest';
-import { planSearch,planReturn } from '@/connectors/apify-chain';
+import { planSearch,planReturn,advanceReturnPlan } from '@/connectors/apify-chain';
 import { completeStage,privateContinuation,purgeReferences,purgeExpiredReferences } from '@/server/provider-chain';
 import { reserveRead } from '@/server/provider-reads';
 import { checkFreeAllowance } from '@/server/provider-allowance';
@@ -14,7 +14,7 @@ export async function flightSearch(jobId:string){
  let started:string|null=null;
  for(let i=0;i<24;i++){started=await launch(jobId);if(started)break;await sleep('5s');}
  if(!started){await exhaustedCapacity(jobId);return jobId;}
- for(let i=0;i<72;i++){await sleep('5s');if(await collect(jobId)){await sleep('10s');await finalBilling(jobId);return jobId;}}
+ for(let i=0;i<120;i++){await sleep('5s');if(await collect(jobId)){await sleep('10s');await finalBilling(jobId);return jobId;}}
  await exhaustedPolling(jobId);
  await sleep('10s');await finalBilling(jobId);
  return jobId;
@@ -51,7 +51,7 @@ async function collect(jobId:string){
  await purgeExpiredReferences();
  const {transaction}=await import('@/server/db');
  const execution=getWorkflowMetadata().workflowRunId;
- const row=await transaction('worker',null,async c=>{const {rows}=await c.query("select j.*,s.query,p.call_id,p.run_id,p.dataset_id,p.phase as provider_phase,p.reads_reserved from flight.jobs j join flight.searches s using(owner_id,search_id) left join flight.provider_calls p on p.owner_id=j.owner_id and p.job_id=j.job_id and p.operation_key=case when j.phase in ('return','booking') then j.phase else 'search' end where j.job_id=$1 and j.workflow_id=$2",[jobId,execution]);return rows[0];});
+ const row=await transaction('worker',null,async c=>{const {rows}=await c.query("select j.*,s.query,p.call_id,p.run_id,p.dataset_id,p.phase as provider_phase,p.reads_reserved from flight.jobs j join flight.searches s using(owner_id,search_id) left join flight.provider_calls p on p.owner_id=j.owner_id and p.job_id=j.job_id and p.operation_key=case when j.phase in ('return','return:1','return:2','booking') then j.phase else 'search' end where j.job_id=$1 and j.workflow_id=$2",[jobId,execution]);return rows[0];});
  if(!row)return null;
  // Booking endpoints are outside the application scope. Legacy checkpoints are
  // stopped explicitly before any booking run, metadata or dataset request.
@@ -63,13 +63,16 @@ async function collect(jobId:string){
  // Renew only the still-current lease; collection never creates another paid run.
  const renewed=await transaction('worker',null,async c=>{const {rows}=await c.query("update flight.jobs set lease_until=now()+interval '120 seconds' where job_id=$1 and lease_version=$2 and cancelled_at is null and status='running' returning job_id",[jobId,row.lease_version]);return rows.length===1;});
  if(!renewed)return jobId;
- const mode=row.phase==='return'?'return':'search';
+ const mode=['return','return:1','return:2'].includes(row.phase)?'return':'search';
  if(!row.call_id&&mode!=='search'){
   let dispatched=false;
   try{
    const membership=await transaction('worker',null,async c=>(await c.query('select exists(select 1 from flight.batch_items where child_job_id=$1) as batch_member',[jobId])).rows[0]);
    if(!jobExecutionEnabled(membership?.batch_member===true))throw Error('LIVE_PROVIDER_DISABLED');
-   const next=await privateContinuation(row,mode),call=await reserveCall(row,mode);
+   const next=await privateContinuation(row,mode);
+   try{advanceReturnPlan({offers:[],next:null,coverage:{returned:0,selected:0}},next);}catch{throw Error('PROVIDER_REFERENCE_EXPIRED');}
+   if((next.operation_key??'return')!==row.phase)throw Error('PROVIDER_REFERENCE_EXPIRED');
+   const call=await reserveCall(row,row.phase);
    if(call.phase!=='reserved'){await failJob(row,'DISPATCH_UNCERTAIN',true);return jobId;}
    await checkFreeAllowance(row.owner_id,call.call_id);
    if(!await beginDispatch(row,call.call_id))return jobId;
@@ -85,7 +88,8 @@ async function collect(jobId:string){
    try{await reserveRead(row.owner_id,row.call_id);const items=await dataset(row.dataset_id);if(items.length!==1)throw Error('PROVIDER_SCHEMA_CHANGED');
    const reported=typeof run.usage==='number'?Math.ceil(run.usage*1000000):null;
    const continuation=mode==='return'?await privateContinuation(row,'return'):null;
-   const plan=mode==='search'?planSearch(items[0],row.query):planReturn(items[0],row.query,continuation!.selected,continuation!.outbound_duration_minutes??null);
+   const membership=mode==='search'?await transaction('worker',null,async c=>(await c.query('select exists(select 1 from flight.batch_items where child_job_id=$1) as batch_member',[jobId])).rows[0]):null;
+   const plan=mode==='search'?planSearch(items[0],row.query,membership?.batch_member===true?1:3):advanceReturnPlan(planReturn(items[0],row.query,continuation!.selected,continuation!.outbound_duration_minutes??null),continuation!);
    await completeStage(row,row.call_id,plan.offers,reported,plan.next,plan.coverage,mode==='search'?parseRouteHistory(items[0],row.query,new Date().toISOString()):null);
    return plan.next?null:jobId;
    }catch{await failJob(row,'DATASET_RECONCILE_REQUIRED',true);return jobId;}

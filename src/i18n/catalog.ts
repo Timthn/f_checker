@@ -1,4 +1,5 @@
 export const en = {
+  outboundSchedules:'Outbound schedules',
   meetingDateMismatch:'Returned flights do not arrive on the selected meeting date. Adjust the departure dates or choose the arrival-window search.',returnedArrivalDates:'Returned arrival dates',
   dateQuoteCoverage:'Dates with prices / date window',returnedVsSource:'Shown options / source quotes',confirmedRightsCount:'Options with confirmed benefits',requestedBaggage:'Requested baggage',perPassengerRequest:'Per passenger',calendarScopeDifference:'Route reference; flight numbers may differ from the combination above.',
   flightRights:'Flight benefits',flightAmenities:'Cabin amenities',passengerLabel:'Passenger',aircraftLabel:'Aircraft',legroomLabel:'Legroom',amenitiesMissing:'The source has not provided cabin amenities.',sourcePriceLow:'Low',sourcePriceHigh:'High',sourcePriceTypical:'Typical',sourcePriceTag:'Source price tag',datePriceStatistics:'Date-price statistics',tripDateStats:'Round-trip route · selected date ±15 days',outboundDateStats:'Outbound one-way route · ±15 days',returnDateStats:'Return one-way route · ±15 days',medianPrice:'Median',loadDateStats:'Load date prices below to see the average and median.',showTripTrend:'Round-trip trend',
@@ -69,6 +70,7 @@ export const en = {
 } as const;
 export type MessageKey=keyof typeof en;
 export const zh:Record<MessageKey,string>={
+  outboundSchedules:'不同去程航班',
   meetingDateMismatch:'返回航班的到达日期不符合会合日。请调整出发日期，或改用按会合日搜索。',returnedArrivalDates:'返回航班到达日期',
   dateQuoteCoverage:'有报价日期 / 日期窗口',returnedVsSource:'展示方案 / 来源报价',confirmedRightsCount:'权益已确认方案',requestedBaggage:'查询行李要求',perPassengerRequest:'每位旅客',calendarScopeDifference:'航线参考价，可能对应其他航班组合。',
   flightRights:'航班权益',flightAmenities:'机舱设施',passengerLabel:'旅客',aircraftLabel:'机型',legroomLabel:'座位间距',amenitiesMissing:'来源暂未提供机舱设施信息。',sourcePriceLow:'偏低',sourcePriceHigh:'偏高',sourcePriceTypical:'适中',sourcePriceTag:'来源价格标签',datePriceStatistics:'日期价格统计',tripDateStats:'往返航线 · 所选日期前后15天',outboundDateStats:'去程单程航线 · 前后15天',returnDateStats:'回程单程航线 · 前后15天',medianPrice:'中位数',loadDateStats:'加载下方日期价格后显示平均价和中位数。',showTripTrend:'查看往返走势',

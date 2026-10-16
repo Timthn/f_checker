@@ -4,10 +4,11 @@ import {recordOffer} from './offer-recording';
 import {recordRouteHistory} from './route-history-recording';
 import type {RouteHistorySnapshot} from '../domain/route-history';
 import {projectReportedCost} from './reported-cost';
+import type {ChainNext} from '../connectors/apify-chain';
 import type { Search,Offer,Segment } from '../domain/contracts';
 
 type Job={owner_id:string;job_id:string;search_id:string;status:string;lease_version:string;cancelled_at:string|null;query:Search};
-export type PrivateNext={mode:'return'|'booking';token:string;selected:Segment[];outbound_duration_minutes?:number|null};
+export type PrivateNext=ChainNext;
 export type ChainCoverage={returned:number;selected:number};
 const key='next-stage';
 
@@ -15,7 +16,7 @@ const key='next-stage';
 export async function privateContinuation(job:Job,mode:'return'|'booking'):Promise<PrivateNext>{
  const next=await transaction('worker',null,async c=>{
   await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2 and r.expires_at<=now()',[job.owner_id,job.job_id]);
-  const {rows}=await c.query("select r.payload from flight.provider_references r join flight.provider_calls p using(owner_id,call_id) where p.owner_id=$1 and p.job_id=$2 and p.operation_key=$3 and r.reference_key=$4 and r.expires_at>now()",[job.owner_id,job.job_id,mode==='return'?'search':job.query.return_date?'return':'search',key]);
+  const {rows}=await c.query("select r.payload from flight.provider_references r join flight.provider_calls p using(owner_id,call_id) where p.owner_id=$1 and p.job_id=$2 and r.payload->>'mode'=$3 and r.reference_key=$4 and r.expires_at>now()",[job.owner_id,job.job_id,mode,key]);
   const next=rows[0]?.payload as PrivateNext|undefined;
   return next??null;
  });
@@ -53,7 +54,7 @@ export async function completeStage(job:Job,callId:string,offers:Offer[],reporte
   await c.query('delete from flight.provider_references r using flight.provider_calls p where r.owner_id=p.owner_id and r.call_id=p.call_id and p.owner_id=$1 and p.job_id=$2',[job.owner_id,job.job_id]);
   await c.query('insert into flight.provider_references(owner_id,call_id,reference_key,payload,expires_at) values($1,$2,$3,$4,$5)',[job.owner_id,callId,key,next,new Date(expiry)]);
   await c.query('insert into flight.checkpoints(owner_id,job_id,step,safe_result) values($1,$2,$3,$4)',[job.owner_id,job.job_id,callId,{count:offers.length,coverage,next_mode:next.mode}]);
-  await c.query("update flight.jobs set phase=$3,lease_until=now()+interval '120 seconds' where owner_id=$1 and job_id=$2",[job.owner_id,job.job_id,next.mode]);
+  await c.query("update flight.jobs set phase=$3,lease_until=now()+interval '120 seconds' where owner_id=$1 and job_id=$2",[job.owner_id,job.job_id,next.operation_key??next.mode]);
  });
 }
 

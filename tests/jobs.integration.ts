@@ -14,6 +14,38 @@ process.loadEnvFile('.env');process.loadEnvFile('.env.migration');
 const admin=new Client({connectionString:process.env.MIGRATION_DATABASE_URL,ssl:{rejectUnauthorized:true,ca:readFileSync('config/supabase-ca.crt','utf8')}});
 const owner=randomUUID(),other=randomUUID(),period=new Date().toISOString().slice(0,7);
 const query={origin:'HKG',destination:'NRT',departure:'2026-11-10',adults:1,cabin:'economy' as const,currency:'HKD' as const,carry_on:0,checked:0};
+it('three outbound branches reserve four distinct calls within the unchanged account cap and reuse each operation',async()=>{
+ const j=await createJob(owner,{...query,return_date:'2026-11-17'},randomUUID());
+ await admin.query("update flight.jobs set lease_version=1,lease_until=now()+interval '120 seconds',status='running' where owner_id=$1 and job_id=$2",[owner,j.job_id]);
+ const job={owner_id:owner,job_id:j.job_id,search_id:j.search_id,status:'running',lease_version:'1',cancelled_at:null,query:{...query,return_date:'2026-11-17'}};
+ const keys=['search','return','return:1','return:2'],ids=[];
+ for(const key of keys){const first=await reserveCall(job,key),again=await reserveCall(job,key);expect(first.call_id).toBe(again.call_id);ids.push(first.call_id);}
+ expect(new Set(ids).size).toBe(4);
+ expect((await admin.query('select sum(ceiling_microusd)::text as amount from flight.provider_calls where owner_id=$1 and job_id=$2',[owner,j.job_id])).rows[0].amount).toBe('120000');
+ await expect(reserveCall(job,'return:3')).rejects.toThrow('QUOTA_EXCEEDED');
+ await cancelJob(owner,j.job_id);
+});
+it('private outbound queue survives branch advancement without expiry extension or token exposure',async()=>{
+ const j=await createJob(owner,{...query,return_date:'2026-11-17'},randomUUID()),calls=[randomUUID(),randomUUID()];
+ await admin.query("update flight.jobs set lease_version=1,lease_until=now()+interval '120 seconds',status='running' where owner_id=$1 and job_id=$2",[owner,j.job_id]);
+ const job={owner_id:owner,job_id:j.job_id,search_id:j.search_id,status:'running',lease_version:'1',cancelled_at:null,query:{...query,return_date:'2026-11-17'}};
+ const selected=parseSearch(economy.provider_response,query)[0].segments;
+ const queue={mode:'return' as const,operation_key:'return' as const,token:'SYNTHETIC_PRIVATE_A',selected,outbound_duration_minutes:100,remaining:[{operation_key:'return:1' as const,token:'SYNTHETIC_PRIVATE_B',selected:selected.map(s=>({...s,flight:'SYNTHETIC_B'})),outbound_duration_minutes:100}]};
+ try{
+  await admin.query("insert into flight.provider_calls(owner_id,job_id,call_id,operation_key,phase,ceiling_microusd,lease_version) values($1,$2,$3,'search','running',1,1)",[owner,j.job_id,calls[0]]);
+  await completeStage(job,calls[0],[],0,queue,{returned:3,selected:2});
+  const first=await privateContinuation(job,'return');expect(first).toEqual(queue);
+  const expiry=(await admin.query('select expires_at from flight.provider_references where owner_id=$1 and call_id=$2',[owner,calls[0]])).rows[0].expires_at;
+  const advanced={mode:'return' as const,...queue.remaining[0],remaining:[]};
+  await admin.query("insert into flight.provider_calls(owner_id,job_id,call_id,operation_key,phase,ceiling_microusd,lease_version) values($1,$2,$3,'return','running',1,1)",[owner,j.job_id,calls[1]]);
+  await completeStage(job,calls[1],[],0,advanced,{returned:1,selected:1});
+  expect((await readJob(owner,j.job_id)).phase).toBe('return:1');expect(await privateContinuation(job,'return')).toEqual(advanced);
+  const refs=(await admin.query('select expires_at from flight.provider_references where owner_id=$1 and call_id=$2',[owner,calls[1]])).rows;expect(refs[0].expires_at.getTime()).toBeLessThanOrEqual(expiry.getTime());
+  const safe=(await admin.query('select safe_result from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id])).rows;expect(JSON.stringify(safe)).not.toContain('SYNTHETIC_PRIVATE');
+  await expect(privateContinuation({...job,owner_id:other},'return')).rejects.toThrow('PROVIDER_REFERENCE_EXPIRED');
+  await cancelJob(owner,j.job_id);await purgeReferences(owner,j.job_id);await expect(privateContinuation(job,'return')).rejects.toThrow('PROVIDER_REFERENCE_EXPIRED');
+ }finally{await purgeReferences(owner,j.job_id);await admin.query('delete from flight.checkpoints where owner_id=$1 and job_id=$2',[owner,j.job_id]);await admin.query('delete from flight.billing_evidence where owner_id=$1 and call_id=any($2::uuid[])',[owner,calls]);await admin.query('delete from flight.provider_calls where owner_id=$1 and job_id=$2',[owner,j.job_id]);}
+});
 let initial:string;
 beforeAll(async()=>{await admin.connect();await admin.query("insert into auth.users(id,email,aud,role) values($1,$2,'authenticated','authenticated'),($3,$4,'authenticated','authenticated')",[owner,`qa-${owner}@example.invalid`,other,`qa-${other}@example.invalid`]);initial=(await admin.query("select reserved_microusd from flight.budget_accounts where account_key='spike-lifetime'")).rows[0].reserved_microusd;});
 afterAll(async()=>{

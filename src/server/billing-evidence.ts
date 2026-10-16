@@ -19,7 +19,7 @@ export async function captureRunBilling(owner:string,callId:string,metadata:unkn
 // Explicit reconciliation includes succeeded/failed calls, not just uncertain jobs.
 // One bounded, reserved metadata read per known run; no provider POST or dataset access.
 export async function reconcileJobBilling(owner:string,id:string){
- const calls=await transaction('worker',null,async c=>(await c.query('select p.call_id,p.run_id from flight.provider_calls p join flight.jobs j using(owner_id,job_id) where j.owner_id=$1 and j.job_id=$2 and p.run_id is not null order by p.created_at limit 3',[owner,id])).rows);
+ const calls=await transaction('worker',null,async c=>(await c.query('select p.call_id,p.run_id from flight.provider_calls p join flight.jobs j using(owner_id,job_id) where j.owner_id=$1 and j.job_id=$2 and p.run_id is not null order by p.created_at limit 4',[owner,id])).rows);
  let captured=0;
  for(const call of calls){try{await reserveRead(owner,call.call_id);const metadata=await runStatus(call.run_id);await captureRunBilling(owner,call.call_id,metadata);captured++;}catch{/* A capped/failed earlier call must not prevent remaining bounded captures. */}}
  const summary=await publicJobBilling(owner,id);return summary?{...summary,reconciliation:{attempted:calls.length,captured,pending:calls.length-captured}}:null;
