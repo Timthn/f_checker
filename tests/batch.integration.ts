@@ -7,7 +7,7 @@ import {claimJob,reserveCall,beginDispatch,createJob,cancelJob,failJob} from '..
 import {recordOffer} from '../src/server/offer-recording';
 import {readBatchResults} from '../src/server/batch-results';
 import {parseSearch} from '../src/connectors/apify-adapter';
-import {ensureBatchWorkflow,prepareBatch,recoverStoppedChild} from '../src/server/batch-execution';
+import {ensureBatchWorkflow,prepareBatch,recoverStoppedChild,reconcileCompletedBatch} from '../src/server/batch-execution';
 import type {Offer} from '../src/domain/contracts';
 import {transaction,pool} from '../src/server/db';
 import {stableId} from '../src/domain/rules';
@@ -21,6 +21,25 @@ const base={origin:'HKG',destination:'NRT',departure:'2026-11-10',cabin:'economy
 const meeting={a:base,b:{...base,origin:'SIN'},arrival_day:'2026-11-10',max_minutes:60,departure_scope:'fixed_departures',max_budget_microusd:200000};
 const flexible={base,departure_from:'2026-11-10',departure_to:'2026-11-11',return_from:'2026-11-17',return_to:'2026-11-17',min_nights:7,max_nights:8,max_budget_microusd:200000};
 const lifetime=async()=>String((await admin.query("select reserved_microusd from flight.budget_accounts where account_key='spike-lifetime'")).rows[0].reserved_microusd);
+it('read reconciliation closes completed members after expiry without restarting or changing child evidence',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID());
+ await admin.query("update flight.jobs j set status='partial' from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2",[owner,batch.batch_id]);
+ await admin.query("update flight.batches set status='running',expires_at=now()-interval '1 second' where owner_id=$1 and batch_id=$2",[owner,batch.batch_id]);
+ expect(await reconcileCompletedBatch(other,batch.batch_id)).toBe(false);
+ expect(await reconcileCompletedBatch(owner,batch.batch_id)).toBe(true);
+ const state=await getBatch(owner,batch.batch_id);expect(state?.status).toBe('partial');expect(state?.items.every((i:{status:string})=>i.status==='partial')).toBe(true);
+ expect(await reconcileCompletedBatch(owner,batch.batch_id)).toBe(false);expect(await lifetime()).toBe(baseline);
+});
+it('read reconciliation leaves pending children and their reserved budget untouched',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID()),before=await lifetime();
+ expect(await reconcileCompletedBatch(owner,batch.batch_id)).toBe(false);expect((await getBatch(owner,batch.batch_id))?.status).toBe('queued');expect(await lifetime()).toBe(before);
+});
+it('parent completion takes precedence over expiry when all children already finished',async()=>{
+ const batch=await admitBatch(owner,'meeting',meeting,randomUUID());const execution=await ensureBatchWorkflow(owner,batch.batch_id,async()=>`qa-final-${batch.batch_id}`);
+ await admin.query("update flight.jobs j set status='partial' from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2",[owner,batch.batch_id]);
+ await admin.query("update flight.batches set expires_at=now()-interval '1 second' where owner_id=$1 and batch_id=$2",[owner,batch.batch_id]);
+ expect((await prepareBatch(batch.batch_id,execution!)).done).toBe(true);expect((await getBatch(owner,batch.batch_id))?.status).toBe('partial');
+});
 beforeAll(async()=>{await admin.connect();await admin.query("insert into auth.users(id,email,aud,role) values($1,$2,'authenticated','authenticated'),($3,$4,'authenticated','authenticated')",[owner,`qa-${owner}@example.invalid`,other,`qa-${other}@example.invalid`]);baseline=await lifetime();});
 async function cleanupBatches(){
  const batches=(await admin.query('select batch_id,accounting_period from flight.batches where owner_id=$1',[owner])).rows;

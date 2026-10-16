@@ -5,6 +5,11 @@ import {planBatch} from '../src/domain/batch-contracts';
 import type {Offer,Search} from '../src/domain/contracts';
 const now=new Date('2026-10-12T01:00:00Z');
 const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',cabin:'economy',adults:1,currency:'HKD',carry_on:1,checked:1};
+it('explains a requested arrival day outside the returned flight dates without changing that request',()=>{
+ const m=planBatch('meeting',{a:q,b:{...q,origin:'SIN'},arrival_day:'2026-12-25',max_minutes:120,departure_scope:'fixed_departures'});
+ const result=batchResults(m,m.queries.map(p=>({ordinal:p.ordinal,status:'partial',phase:'search',searched:true,offers:[offer(p.query,String(p.ordinal))]})),null,now);
+ if(result.kind!=='meeting')throw Error();expect(result.arrival_day_mismatch).toBe(true);expect(result.arrival_days).toEqual({a:['2026-11-10'],b:['2026-11-10']});expect(result.reference_pairs).toEqual([]);expect(m.request).toMatchObject({arrival_day:'2026-12-25'});
+});
 function offer(query=q,id='a',clock='2026-11-10T14:00:00'):Offer{return {offer_id:id,itinerary_id:id,comparison_key:null,money:{minor:10000,currency:'HKD',digits:2},complete:true,price_complete:false,quoted_adults:null,time_verified:false,source:'synthetic_test',fare_identity:null,observed_at:'2026-10-12T00:59:00Z',expires_at:'2026-10-12T01:14:00Z',duration_minutes:240,baggage:[],quote_evidence:{state:'source_fields_matched',display_minor:10000,exact_minor:10000},segments:[{leg_index:0,from:query.origin,to:query.destination,departure_local:query.departure+'T09:00:00',arrival_local:clock,departure_utc:null,arrival_utc:null,arrival_zone:null,flight:id,cabin:'economy',duration:240},...(query.return_date?[{leg_index:1,from:query.destination,to:query.origin,departure_local:query.return_date+'T09:00:00',arrival_local:query.return_date+'T14:00:00',departure_utc:null,arrival_utc:null,arrival_zone:null,flight:id+'R',cabin:'economy' as const,duration:240}]:[])]};}
 it('keeps unknown rights eligible only in fresh source references, excludes explicit incompatible evidence',()=>{
  const o=offer();expect(referenceEligible(o,q,now)).toBe(true);

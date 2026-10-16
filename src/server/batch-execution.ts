@@ -10,6 +10,17 @@ async function releaseHeld(c:PoolClient,owner:string,id:string,period:string){
  await c.query('update flight.budget_accounts set reserved_microusd=reserved_microusd-$2,calls_reserved=calls_reserved-$3 where account_key=any($1::text[])',[keys,amount,held.rows.length]);
 }
 
+// Completion is a projection of immutable members, independent of SDK liveness.
+// Read-side reconciliation never starts children, contacts a provider or retries dispatch.
+export async function reconcileCompletedBatch(owner:string,id:string){return transaction('worker',null,async c=>{
+ const b=(await c.query('select status,accounting_period from flight.batches where owner_id=$1 and batch_id=$2 for update',[owner,id])).rows[0];
+ if(!b||!['queued','running'].includes(b.status))return false;
+ const members=(await c.query('select j.status from flight.batch_items i join flight.jobs j on j.owner_id=i.owner_id and j.job_id=i.child_job_id where i.owner_id=$1 and i.batch_id=$2',[owner,id])).rows;
+ if(!members.length||members.some(j=>!['partial','succeeded','failed','cancelled','uncertain'].includes(j.status)))return false;
+ const status=members.some(j=>j.status==='uncertain')?'uncertain':members.every(j=>j.status==='succeeded')?'succeeded':members.some(j=>['partial','succeeded'].includes(j.status))?'partial':members.every(j=>j.status==='cancelled')?'cancelled':'failed';
+ await c.query('update flight.batches set status=$3 where owner_id=$1 and batch_id=$2',[owner,id,status]);await releaseHeld(c,owner,id,b.accounting_period);return true;
+});}
+
 export async function ensureBatchWorkflow(owner:string,id:string,launcher:(id:string)=>Promise<string>,stopped?:(execution:string)=>Promise<boolean>):Promise<string|null>{
  const claim=await transaction('worker',null,async c=>{
   const b=(await c.query('select * from flight.batches where owner_id=$1 and batch_id=$2 for update',[owner,id])).rows[0];if(!b)throw Error('NOT_FOUND');
@@ -38,15 +49,15 @@ export async function prepareBatch(id:string,execution:string){return transactio
  if(!b||b.workflow_id&&b.workflow_id!==execution)return {done:true,owner:null,children:[] as string[]};
  const members=(await c.query('select j.job_id,j.status,j.workflow_id from flight.batch_items i join flight.jobs j on j.owner_id=i.owner_id and j.job_id=i.child_job_id where i.owner_id=$1 and i.batch_id=$2 order by i.ordinal',[b.owner_id,id])).rows;
  if(b.cancelled_at||!['queued','running'].includes(b.status)){await releaseHeld(c,b.owner_id,id,b.accounting_period);return {done:true,owner:b.owner_id,children:[] as string[]};}
+ const active=members.filter(j=>['queued','running'].includes(j.status));
+ if(!active.length){
+  const status=members.some(j=>j.status==='uncertain')?'uncertain':members.every(j=>j.status==='succeeded')?'succeeded':members.some(j=>['partial','succeeded'].includes(j.status))?'partial':members.every(j=>j.status==='cancelled')?'cancelled':'failed';
+  await c.query('update flight.batches set status=$3,workflow_id=coalesce(workflow_id,$4) where owner_id=$1 and batch_id=$2',[b.owner_id,id,status,execution]);await releaseHeld(c,b.owner_id,id,b.accounting_period);return {done:true,owner:b.owner_id,children:[] as string[]};
+ }
  const expired=new Date(b.expires_at).getTime()<=Date.now()||b.accounting_period!==new Date().toISOString().slice(0,7);
  if(expired){
   await c.query("update flight.jobs j set cancelled_at=coalesce(j.cancelled_at,now()),status=case when j.status in ('queued','running') then 'cancelled' else j.status end from flight.batch_items i where i.owner_id=j.owner_id and i.child_job_id=j.job_id and i.owner_id=$1 and i.batch_id=$2",[b.owner_id,id]);
   await c.query("update flight.batches set status='uncertain',workflow_id=coalesce(workflow_id,$3) where owner_id=$1 and batch_id=$2",[b.owner_id,id,execution]);await releaseHeld(c,b.owner_id,id,b.accounting_period);return {done:true,owner:b.owner_id,children:[] as string[]};
- }
- const active=members.filter(j=>['queued','running'].includes(j.status));
- if(!active.length){
-  const status=members.some(j=>j.status==='uncertain')?'uncertain':members.every(j=>j.status==='succeeded')?'succeeded':members.some(j=>['partial','succeeded'].includes(j.status))?'partial':'failed';
-  await c.query('update flight.batches set status=$3,workflow_id=coalesce(workflow_id,$4) where owner_id=$1 and batch_id=$2',[b.owner_id,id,status,execution]);await releaseHeld(c,b.owner_id,id,b.accounting_period);return {done:true,owner:b.owner_id,children:[] as string[]};
  }
  await c.query("update flight.batches set status='running',workflow_id=coalesce(workflow_id,$3) where owner_id=$1 and batch_id=$2",[b.owner_id,id,execution]);
  const launched=active.filter(j=>j.workflow_id).length;

@@ -2,7 +2,7 @@ import {Temporal} from '@js-temporal/polyfill';
 import type {BatchPlan,LiveMeeting,LiveFlexible} from './batch-contracts';
 import type {Offer,CalendarCell} from './contracts';
 import {qualifies,rendezvous,rendezvousCandidates,rendezvousFrontier,closestGapAlternatives} from './rules';
-import {referenceEligible,referenceMeeting,referenceNights} from './reference-recommendations';
+import {referenceEligible,referenceMeeting,referenceNights,localClock} from './reference-recommendations';
 
 export type BatchResultItem={ordinal:number;status:string;phase:string;offers:Offer[];searched?:boolean};
 export type SeparateTravelerRecommendation={a:Offer;b:Offer;total:Offer['money'];nights:number;preferences:NonNullable<LiveFlexible['base']['traveler_baggage']>;time_basis:'destination_local_assumption';constraints:'unknown'};
@@ -28,6 +28,17 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
  const coverage={...plan.coverage,admitted:members.length,searched:members.filter(m=>searched(m.item)).length,complete_quotes:members.filter(m=>m.item?.offers.some(o=>o.complete&&o.price_complete)).length,query_constraints_verified:members.filter(m=>m.item?.offers.some(o=>qualifies(o,m.planned.query,now)==='confirmed')).length};
  if(plan.kind==='meeting'){
   const q=plan.request as LiveMeeting;
+  const arrival_days={a:[] as string[],b:[] as string[]};
+  for(const side of ['a','b'] as const){
+   const days=new Set<string>();
+   for(const m of members)if(m.planned.participants.includes(side))for(const o of m.item?.offers??[]){
+    const ss=o.segments.filter(s=>s.leg_index===0),last=ss.at(-1),clock=last&&localClock(last.arrival_local);
+    if(clock&&ss[0]?.from===m.planned.query.origin&&last?.to===q[side].destination&&ss[0]?.departure_local.slice(0,10)===m.planned.query.departure)days.add(clock.toPlainDate().toString());
+   }
+   arrival_days[side]=[...days].sort();
+  }
+  if(q.lock_a&&lockedA?.offer_id===q.lock_a){const clock=localClock(lockedA.segments.filter(s=>s.leg_index===0).at(-1)?.arrival_local??'');if(clock)arrival_days.a=[clock.toPlainDate().toString()];}
+  const arrival_day_mismatch=(['a','b'] as const).some(side=>arrival_days[side].length>0&&!arrival_days[side].includes(q.arrival_day));
   const sides={a:[] as Offer[],b:[] as Offer[]};
   for(const m of members)for(const side of ['a','b'] as const)if(m.planned.participants.includes(side))sides[side].push(...(m.item?.offers??[]).filter(o=>qualifies(o,m.planned.query,now)==='confirmed'));
   if(q.lock_a){
@@ -51,7 +62,7 @@ export function batchResults(plan:BatchPlan,items:BatchResultItem[],lockedA:Offe
   const refs={a:[] as Offer[],b:[] as Offer[]};
   for(const m of members)for(const side of ['a','b'] as const)if(m.planned.participants.includes(side))refs[side].push(...(m.item?.offers??[]).filter(o=>referenceEligible(o,m.planned.query,now)));
   if(q.lock_a){const departure=lockedA?.segments.find(s=>s.leg_index===0)?.departure_local.slice(0,10);refs.a=lockedA&&departure&&sides.a.length&&referenceEligible(lockedA,{...q.a,departure},now)?[lockedA]:[];}
-  return {kind:'meeting' as const,...referenceMeeting(refs.a,refs.b,q.arrival_day,q.max_minutes),pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
+  return {kind:'meeting' as const,arrival_days,arrival_day_mismatch,...referenceMeeting(refs.a,refs.b,q.arrival_day,q.max_minutes),pairs:best,alternatives:distinct(alternatives).sort((p,r)=>p.gap-r.gap||p.total-r.total||p.duration-r.duration||identity(p,r)).slice(0,5),coverage,source_candidates,source:'batch_members_only' as const};
  }
  const q=plan.request as LiveFlexible,cells:(CalendarCell&{query_status:string;searched:boolean})[]=[],verified:{offer:Offer;nights:number}[]=[];
  const separated=members.some(m=>m.planned.participants.includes('a')||m.planned.participants.includes('b'));
