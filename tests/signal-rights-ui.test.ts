@@ -1,0 +1,16 @@
+import {it,expect} from 'vitest';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {PriceSignal} from '../src/components/price-signal';
+import {FlightRights} from '../src/components/flight-rights';
+import {parseSearch} from '../src/connectors/apify-adapter';
+import type {Search} from '../src/domain/contracts';
+import type {RouteHistorySnapshot} from '../src/domain/route-history';
+import type {PriceWindow} from '../src/domain/price-window';
+import one from '../docs/connectors/fixtures/apify-build-0.0.2/economy-one-way.json';
+const q:Search={origin:'HKG',destination:'NRT',departure:'2026-11-10',return_date:'2026-11-17',cabin:'economy',adults:1,currency:'HKD',carry_on:0,checked:0};
+const window=(mode:PriceWindow['mode']='trip'):PriceWindow=>({query:mode==='trip'?q:{...q,return_date:undefined},currency:'HKD',mode,points:[{day:'2026-11-09',minor:10000},{day:'2026-11-10',minor:20000},{day:'2026-11-11',minor:80000},{day:'2026-11-12',minor:null}]});
+it('prefers publisher tag even without seven history samples',()=>{const html=renderToStaticMarkup(createElement(PriceSignal,{query:q,history:{price_level:'high',observed_at:'2026-10-14T12:00:00Z',points:[]} as unknown as RouteHistorySnapshot,windows:{},locale:'zh-Hans'}));expect(html).toContain('偏高');expect(html).toContain('来源价格标签');expect(html).not.toContain('历史不足');});
+it('displays daily mean and median of complete-trip calendar values, not one-way prices or missing days',()=>{const html=renderToStaticMarkup(createElement(PriceSignal,{query:q,windows:{trip:window(),outbound:{...window('outbound'),points:[{day:'2026-11-10',minor:100}]}},locale:'en'}));expect(html).toContain('Round-trip route');expect(html).toContain('HK$366.67');expect(html).toContain('HK$200.00');expect(html).toContain('3 / 31');});
+it('labels fallback leg statistics as one-way, never as combined totals',()=>{const html=renderToStaticMarkup(createElement(PriceSignal,{query:q,windows:{outbound:window('outbound')},locale:'en'}));expect(html).toContain('Outbound one-way route');expect(html).not.toContain('Round-trip route');});
+it('shows source aircraft/legroom and unavailable baggage without inventing kg or included bags',()=>{const offer=parseSearch(one.provider_response,{...q,return_date:undefined})[0],html=renderToStaticMarkup(createElement(FlightRights,{offer,adults:1,locale:'zh-Hans'}));expect(html).toContain('航班权益');expect(html).toContain('机舱设施');expect(html).toContain('Airbus A320');expect(html).toContain('29 in');expect(html).toContain('来源未提供包含额度');expect(html).not.toContain('23 kg');});

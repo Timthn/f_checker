@@ -1,0 +1,10 @@
+import {it,expect} from 'vitest';
+import {readSearchDraft,serializeSearchDraft,searchDraftKey} from '../src/domain/search-draft';
+import type {Search} from '../src/domain/contracts';
+const q:Search={origin:'TPE',destination:'HKG',departure:'2026-11-11',return_date:'2026-11-14',adults:2,cabin:'business',currency:'USD',carry_on:0,checked:2};
+const reader=(values:Record<string,string>)=>({getItem:(key:string)=>values[key]??null});
+it('restores every entered condition including return date instead of development defaults',()=>{expect(readSearchDraft(reader({[searchDraftKey('a')]:serializeSearchDraft(q)}),'a')).toEqual(q);});
+it('keeps deliberately cleared return/partial input rather than resurrecting the last roundtrip',()=>{const draft={...q,origin:'',departure:'',return_date:undefined},s=reader({[searchDraftKey('a')]:serializeSearchDraft(draft),'fc-request:a':JSON.stringify({payload:q})});expect(readSearchDraft(s,'a')).toEqual(draft);});
+it('isolates account and guest drafts without leaking another account form',()=>{const s=reader({[searchDraftKey('a')]:serializeSearchDraft(q),[searchDraftKey()]:serializeSearchDraft({...q,origin:'SIN'})});expect(readSearchDraft(s,'a')?.origin).toBe('TPE');expect(readSearchDraft(s,'b')).toBeNull();expect(readSearchDraft(s)?.origin).toBe('SIN');});
+it('recovers the owner existing request for first upgrade without copying opaque request fields',()=>{const s=reader({'fc-request:a':JSON.stringify({key:'opaque',payload:{...q,locale:'en',token:'synthetic-private-not-a-credential'}})});expect(readSearchDraft(s,'a')).toEqual(q);expect(serializeSearchDraft(readSearchDraft(s,'a')!)).not.toContain('opaque');expect(serializeSearchDraft({...q,token:'synthetic-extra'} as Search)).not.toContain('token');});
+it('rejects corrupt, oversized, wrong-version and malformed stored forms',()=>{for(const raw of ['{',JSON.stringify({version:2,query:q}),JSON.stringify({version:1,query:{...q,checked:99}}),'x'.repeat(16001)])expect(readSearchDraft(reader({[searchDraftKey('a')]:raw}),'a')).toBeNull();});

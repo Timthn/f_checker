@@ -14,6 +14,8 @@ npm run build
 npm start
 ```
 
+For local preview updates, set `WORKFLOW_TARGET_WORLD=local` and `WORKFLOW_LOCAL_DATA_DIR=data/workflow-local` in ignored `.env`; preserve that state directory. Optional `FC_NEXT_DIST_DIR=data/preview-build-a` (or `data/preview-build-b`) must match build and start. Build the inactive directory while the current server runs, then briefly stop that server and start the completed build. Run only one local Workflow executor. Without the override the default production directory is `.next`.
+
 Open http://127.0.0.1:3000. Recorded samples work without provider calls. Private analysis uses the designated Supabase project. The separate reference-search switch permits explicit individual queries with unknown rights; full confirmed-feature mode stays disabled; LIVE_REFERENCE_BATCH_ENABLED separately permits explicit meeting/flexible reference batches.
 
 Copy .env.example to ignored .env and configure public Supabase URL/publishable key plus restricted API/worker PostgreSQL URLs. Setup credentials belong only in ignored .env.migration, copied from .env.migration.example. Never put admin DB credentials or Apify token in browser variables. TLS uses config/supabase-ca.crt; do not disable certificate validation. No deployment is authorized.

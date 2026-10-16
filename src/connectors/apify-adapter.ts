@@ -2,7 +2,18 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { money, stableId } from '../domain/rules';
 import type { Offer, Search, CalendarCell, Segment } from '../domain/contracts';
-const segment=z.object({departure_airport:z.string(),arrival_airport:z.string(),departure_time:z.string(),arrival_time:z.string(),flight_number:z.string(),cabin_class:z.string(),duration_minutes:z.number(),airline:z.string().trim().min(1).max(120).optional().catch(undefined),airline_code:z.string().regex(/^[A-Z0-9]{2}$/).optional().catch(undefined)});
+const safeFacilityText=(v:unknown,max:number):string|undefined=>{
+ if(typeof v!=='string')return;const text=v.trim();
+ if(!text||text.length>max||!(/^[\p{L}\p{N} .,()'’+%&–—-]+$/u).test(text)||/(?:https?|www|token|secret|password|bearer|api.?key)|[A-Za-z0-9_-]{32,}/i.test(text))return;
+ return text;
+};
+const facility=/wi[ -]?fi|wireless|power|usb|meal|food|entertainment|seat|legroom|腿部|座椅|餐食|娱乐|電源|电源|无线/i;
+const facilityMetadata=(s:{aircraft?:unknown;legroom?:unknown;extensions?:unknown})=>{
+ const aircraft=safeFacilityText(s.aircraft,80),legroom=safeFacilityText(s.legroom,40);
+ const amenities=Array.isArray(s.extensions)?[...new Set(s.extensions.slice(0,40).map(v=>safeFacilityText(v,160)).filter((v):v is string=>!!v&&facility.test(v)))].slice(0,8):[];
+ return {...(aircraft?{aircraft}:{}),...(legroom?{legroom}:{}),...(amenities.length?{amenities}:{})};
+};
+const segment=z.object({aircraft:z.unknown().optional(),legroom:z.unknown().optional(),extensions:z.unknown().optional(),departure_airport:z.string(),arrival_airport:z.string(),departure_time:z.string(),arrival_time:z.string(),flight_number:z.string(),cabin_class:z.string(),duration_minutes:z.number(),airline:z.string().trim().min(1).max(120).optional().catch(undefined),airline_code:z.string().regex(/^[A-Z0-9]{2}$/).optional().catch(undefined)});
 const leg=z.object({segments:z.array(segment).min(1),duration_minutes:z.unknown().optional()});
 const candidate=z.object({legs:z.array(leg).min(1),price:z.number().nonnegative().nullable(),currency:z.string(),display_price:z.string().nullable().optional(),price_exact:z.number().nonnegative().nullable().optional(),carry_on_bags_included:z.number().nullable().optional(),checked_bags_included:z.number().nullable().optional()});
 const search=z.object({mode:z.enum(['search','return']),itineraries:z.array(candidate),scraped_at:z.iso.datetime(),trip_type:z.string().optional()});
@@ -13,7 +24,7 @@ function elapsedDuration(legs:z.infer<typeof leg>[]):number|null{
  for(const l of legs){const n=l.duration_minutes;if(typeof n!=='number'||!Number.isSafeInteger(n)||n<=0||l.segments.some(s=>!Number.isSafeInteger(s.duration_minutes)||s.duration_minutes<=0)||n<l.segments.reduce((sum,s)=>sum+s.duration_minutes,0))return null;total+=n;if(!Number.isSafeInteger(total))return null;}
  return total;
 }
-const segments=(legs:z.infer<typeof leg>[]):Segment[]=>legs.flatMap((l,leg_index)=>l.segments.map(s=>({leg_index,from:s.departure_airport,to:s.arrival_airport,departure_local:s.departure_time,arrival_local:s.arrival_time,departure_utc:null,arrival_utc:null,arrival_zone:null,flight:s.flight_number,cabin:s.cabin_class,duration:s.duration_minutes,...(s.airline?{airline:s.airline}:{}),...(s.airline_code?{airline_code:s.airline_code}:{})})));
+const segments=(legs:z.infer<typeof leg>[]):Segment[]=>legs.flatMap((l,leg_index)=>l.segments.map(s=>({...facilityMetadata(s),leg_index,from:s.departure_airport,to:s.arrival_airport,departure_local:s.departure_time,arrival_local:s.arrival_time,departure_utc:null,arrival_utc:null,arrival_zone:null,flight:s.flight_number,cabin:s.cabin_class,duration:s.duration_minutes,...(s.airline?{airline:s.airline}:{}),...(s.airline_code?{airline_code:s.airline_code}:{})})));
 export function parseSearch(raw:unknown,query:Search):Offer[] {
   const data=search.parse(raw);
   return data.itineraries.filter((c):c is typeof c & {price:number}=>c.price!==null).map(c=>{

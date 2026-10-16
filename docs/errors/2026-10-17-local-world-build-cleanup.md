@@ -1,0 +1,11 @@
+# Local workflow build-directory interruption
+
+During the Oct17 form-persistence correction, stopping the existing preview exposed a local calendar queue error: EPERM renaming a temporary run file inside `.next/workflow-data/runs`. The exact cause of that Windows rename failure remains unproven. The subsequent Next production rebuild removed the build-output world directory. Rebuilding without preserving that directory was an agent handling error, not a form-persistence bug.
+
+Bounded readonly database evidence: one latest calendar job remained running, one known running provider call with run/dataset identifiers, zero saved cells; prior completed jobs retained31/61cells. No ambiguous request was retried. Installed `@workflow/next` sets WORKFLOW_LOCAL_DATA_DIR to `.next/workflow-data` when WORKFLOW_TARGET_WORLD is missing, overriding an implicit/default local path.
+
+Recovery: ignored project-only `data/collect-existing-calendar.cjs`, syntax checked and independently reviewed, selected one exact-project known active calendar run and called production `collectCalendar(job, execution)` only. Original owner/job/workflow/lease/cancel/read-budget fences remained. Result: done=true, status=partial, safe_error=null, saved_cells31, new_run_posts0. No reservations refunded/reset, no new ActorPOST, no SDK replay or token logging. Source metadata/dataset reads consumed existing bounded overhead; this was not a new market search or final-invoice validation.
+
+Prevention configuration: local ignored `.env` explicitly sets WORKFLOW_TARGET_WORLD=local and WORKFLOW_LOCAL_DATA_DIR=data/workflow-local; `.env.example` aligned. The designated state directory is inside this project, ignored, and outside `.next`. No other checkout, system settings or database permissions modified. Preserve it across builds/restarts. Original run JSON could not be restored after build cleanup; the durable SQL/provider references allowed safe result collection.
+
+Verification limits: original query recovered and data saved. This does not prove every concurrent filesystem EPERM case is resolved. Future runtime failures must retain call/run evidence and use bounded known-run reconciliation, never blind paid replay. Form/presentation tests and final artifact/health verification are recorded in progress. No failure counter or budget reset.
